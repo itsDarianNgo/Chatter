@@ -1,0 +1,21 @@
+{
+  "schema_name": "ChatMessage",
+  "schema_version": "1.0.0",
+  "id": "01JH7Y0M2KQ8T8G2A9F6G1VQ1B",
+  "ts": "2025-12-12T20:15:06.020Z",
+  "room_id": "room:demo",
+  "origin": "bot",
+  "user_id": "LoreMaster3000",
+  "display_name": "LoreMaster3000",
+  "content": "for context: right is cursed LUL",
+  "reply_to": null,
+  "mentions": [],
+  "emotes": [
+    { "code": "LUL", "provider": "twitch" }
+  ],
+  "badges": ["mod"],
+  "style": { "name_color": "#B19CD9", "effects": ["glow"] },
+  "client_meta": null,
+  "moderation": null,
+  "trace": { "producer": "persona_workers", "llm_ms": 180, "mem_ms": 22 }
+}

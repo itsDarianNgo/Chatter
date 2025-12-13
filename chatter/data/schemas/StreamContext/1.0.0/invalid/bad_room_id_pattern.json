@@ -1,0 +1,12 @@
+{
+  "schema_name": "StreamContext",
+  "schema_version": "1.0.0",
+  "id": "01JH7Y0J1S0J2R1K9F1Y2YQZ9E",
+  "ts": "2025-12-12T20:15:25.000Z",
+  "room_id": "demo",
+  "sequence": 2,
+  "transcript_window": [],
+  "events": [],
+  "keywords": ["oops"],
+  "summary": "room_id must start with room: and match the allowed pattern."
+}

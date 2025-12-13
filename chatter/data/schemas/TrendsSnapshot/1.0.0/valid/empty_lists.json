@@ -1,0 +1,12 @@
+{
+  "schema_name": "TrendsSnapshot",
+  "schema_version": "1.0.0",
+  "id": "01JH7Y0R5KX6K0A1YV7A3XQH8B",
+  "ts": "2025-12-12T20:15:08.000Z",
+  "room_id": "room:demo",
+  "window_s": 10,
+  "msg_per_s": 0,
+  "top_tokens": [],
+  "top_mentions": [],
+  "bot_fraction": 0
+}

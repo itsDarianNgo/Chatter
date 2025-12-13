@@ -1,0 +1,35 @@
+{
+  "schema_name": "StreamContext",
+  "schema_version": "1.0.0",
+  "id": "01JH7Y0J1S0J2R1K9F1Y2YQZ9B",
+  "ts": "2025-12-12T20:15:10.000Z",
+  "room_id": "room:demo",
+  "sequence": 42,
+  "transcript_window": [
+    {
+      "t0_ms": 0,
+      "t1_ms": 4200,
+      "text": "Alright chat, do we go left or right here?",
+      "speaker": "streamer",
+      "confidence": 0.92
+    },
+    {
+      "t0_ms": 4200,
+      "t1_ms": 6900,
+      "text": "I swear the last time we picked right it was a disaster.",
+      "speaker": "streamer",
+      "confidence": 0.9
+    }
+  ],
+  "events": [
+    {
+      "type": "chat_question",
+      "strength": 0.85,
+      "ts": "2025-12-12T20:15:09.900Z",
+      "meta": { "question": "left or right" }
+    }
+  ],
+  "keywords": ["decision", "route", "left", "right"],
+  "summary": "Streamer asks chat to decide: left or right route.",
+  "scene": "gameplay"
+}

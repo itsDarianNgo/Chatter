@@ -1,0 +1,14 @@
+{
+  "schema_name": "StreamContext",
+  "schema_version": "1.0.0",
+  "id": "01JH7Y0J1S0J2R1K9F1Y2YQZ9F",
+  "ts": "2025-12-12T20:15:30.000Z",
+  "room_id": "room:demo",
+  "sequence": 3,
+  "transcript_window": [
+    { "t0_ms": 0, "t1_ms": 1000, "speaker": "streamer" }
+  ],
+  "events": [],
+  "keywords": ["oops"],
+  "summary": "TranscriptSegment requires text."
+}

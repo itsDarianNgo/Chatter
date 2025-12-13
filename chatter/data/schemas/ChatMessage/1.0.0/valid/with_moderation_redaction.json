@@ -1,0 +1,23 @@
+{
+  "schema_name": "ChatMessage",
+  "schema_version": "1.0.0",
+  "id": "01JH7Y0M2KQ8T8G2A9F6G1VQ1C",
+  "ts": "2025-12-12T20:15:06.030Z",
+  "room_id": "room:demo",
+  "origin": "human",
+  "user_id": "user_12345",
+  "display_name": "someViewer",
+  "content": "my email is [REDACTED]",
+  "reply_to": null,
+  "mentions": [],
+  "emotes": [],
+  "badges": [],
+  "moderation": {
+    "action": "redact",
+    "reasons": ["pii_email"],
+    "redactions": [
+      { "kind": "pii_email", "start": 12, "end": 29, "replacement": "[REDACTED]" }
+    ]
+  },
+  "trace": { "producer": "chat_gateway", "request_id": "req_demo_001" }
+}

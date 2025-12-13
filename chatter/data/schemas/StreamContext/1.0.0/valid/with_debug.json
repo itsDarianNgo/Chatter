@@ -1,0 +1,17 @@
+{
+  "schema_name": "StreamContext",
+  "schema_version": "1.0.0",
+  "id": "01JH7Y0J1S0J2R1K9F1Y2YQZ9C",
+  "ts": "2025-12-12T20:15:15.000Z",
+  "room_id": "room:demo",
+  "sequence": 43,
+  "transcript_window": [
+    { "t0_ms": 0, "t1_ms": 1200, "text": "Wait, what was that noise?", "speaker": "streamer" }
+  ],
+  "events": [
+    { "type": "big_laugh", "strength": 0.25, "ts": "2025-12-12T20:15:14.950Z", "meta": { "cause": "chat message" } }
+  ],
+  "keywords": ["noise", "confused"],
+  "summary": "Streamer reacts to a noise and laughs lightly.",
+  "debug": { "asr_model": "whisper-small", "note": "debug fields should be disabled in prod" }
+}
