@@ -1,12 +1,13 @@
-# persona_workers (Turn A skeleton)
+# persona_workers (Turn B deterministic policy)
 
-A minimal persona worker runtime that consumes chat events from `stream:chat.firehose`, applies deterministic policy triggers, and publishes bot `ChatMessage` payloads back to `stream:chat.ingest`. No LLM or Mem0 logic is present yet.
+A deterministic persona worker runtime that consumes chat events from `stream:chat.firehose`, applies a policy engine driven by room/persona configs, and publishes bot `ChatMessage` payloads back to `stream:chat.ingest`. No LLM or Mem0 logic is present yet.
 
 ## What it does
 - Uses Redis Streams consumer groups on the firehose to read sanitized chat events.
-- Maintains light in-memory state (recent messages, per-persona cooldowns, per-room budgets, dedupe cache).
-- Applies a deterministic trigger policy (markers like `E2E_TEST_`, `E2E_MARKER_`, or `@ClipGoblin`) with cooldown and budget checks.
-- Generates short single-line replies and publishes valid `ChatMessage` documents with schema validation.
+- Maintains light in-memory state (recent messages, message-rate tracking, per-persona cooldowns, per-room budgets, dedupe cache).
+- Applies a deterministic policy engine that combines cooldowns, room budgets, mention/hype bonuses, message-rate dampening, and a deterministic probability gate.
+- Keeps a deterministic forced-response path for markers like `E2E_TEST_`, `E2E_TEST_BOTLOOP_`, or `E2E_MARKER_` (still blocks bot-origin and overly old events).
+- Generates short single-line replies (no `@` mentions) with persona catchphrase flavor and optional emote sprinkling, always within max safety chars.
 - Exposes FastAPI health and stats endpoints on port 8090.
 
 ## Running locally
