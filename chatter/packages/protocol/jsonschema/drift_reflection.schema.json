@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/protocol/drift_reflection.schema.json",
+  "title": "DriftReflection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["drift", "durable_memories"],
+  "properties": {
+    "drift": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "talkativeness",
+        "meme_level",
+        "helpfulness",
+        "saltiness",
+        "curiosity",
+        "topic_biases"
+      ],
+      "properties": {
+        "talkativeness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "meme_level": { "type": "number", "minimum": 0, "maximum": 1 },
+        "helpfulness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "saltiness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "curiosity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "topic_biases": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 },
+          "maxProperties": 128
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "maxItems": 32
+        }
+      }
+    },
+    "durable_memories": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/DurableMemory" }
+    }
+  },
+  "$defs": {
+    "Confidence": {
+      "type": "string",
+      "enum": ["low", "med", "high"]
+    },
+    "DurableMemory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "other_user", "topic", "content", "confidence"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["relationship", "catchphrase", "preference", "lore_event", "note"]
+        },
+        "other_user": {
+          "anyOf": [
+            { "type": "string", "minLength": 1, "maxLength": 64 },
+            { "type": "null" }
+          ]
+        },
+        "topic": {
+          "anyOf": [
+            { "type": "string", "minLength": 1, "maxLength": 128 },
+            { "type": "null" }
+          ]
+        },
+        "content": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "confidence": { "$ref": "#/$defs/Confidence" }
+      }
+    }
+  }
+}

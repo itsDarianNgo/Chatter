@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chatter"
+version = "0.0.0"
+description = "Chatter utilities"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.0.0"]
+
+[project.scripts]
+validate-protocol-schemas = "scripts.ops.validate_protocol_schemas:main"
+validate-configs = "scripts.ops.validate_configs:main"
+validate-prompt-outputs = "scripts.ops.validate_prompt_outputs:main"
+
+[tool.setuptools.packages.find]
+include = ["scripts*"]
