@@ -1,20 +1,12 @@
 # chat_gateway
 
-Realtime chat gateway.
+Vertical-slice gateway for chatter. It consumes chat messages from Redis Streams, validates them against `ChatMessage` protocol schemas, applies safety redactions, broadcasts over WebSockets, and publishes the authoritative firehose stream.
 
-## Responsibilities
-- Accept inbound messages from:
-    - persona agents (bots)
-    - humans (future)
-- Broadcast messages to connected clients (WebSocket)
-- Publish every broadcast message to `chat.firehose`
-- Optional: persist chat logs for replay/debugging
+## Running locally
 
-## Interfaces
-- Consumes: `chat.ingest`
-- Produces: `chat.firehose`
-- Uses schemas from: `packages/protocol/`
+- Set `REDIS_URL` (defaults to `redis://localhost:6379/0`).
+- Start the app: `python -m apps.chat_gateway.src.main`.
+- WebSocket endpoint: `ws://localhost:8080/ws`.
+- Health: `GET /healthz`, Stats: `GET /stats`.
 
-## Safety
-- Enforces baseline content policy (e.g., blocklists/redaction) via `packages/safety/`
-- Tags message origin (`human` vs `bot`)
+The gateway expects messages on `stream:chat.ingest` and will publish sanitized messages to `stream:chat.firehose`.

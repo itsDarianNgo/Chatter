@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  chat_gateway:
+    build:
+      context: .
+      dockerfile: apps/chat_gateway/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      INGEST_STREAM: stream:chat.ingest
+      FIREHOSE_STREAM: stream:chat.firehose
+      PORT: 8080
+      MODERATION_CONFIG: configs/moderation/default.json
+    volumes:
+      - ./:/app:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+
+  web_ui:
+    image: nginx:alpine
+    volumes:
+      - ./apps/web_ui:/usr/share/nginx/html:ro
+    ports:
+      - "5173:80"
+    depends_on:
+      - chat_gateway
+
+  stub_publisher:
+    image: python:3.11-slim
+    working_dir: /app
+    command: python apps/tools/stub_publisher/publish.py --redis-url redis://redis:6379/0 --rate 10
+    volumes:
+      - ./:/app:ro
+    depends_on:
+      - redis
+    profiles: ["publisher"]
