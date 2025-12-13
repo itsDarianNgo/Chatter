@@ -1,0 +1,1 @@
+Output JSON only with a drift object and durable_memories array (max 3) respecting bounds and the documented reflection schema.

@@ -18,13 +18,33 @@ Related:
 
 ---
 
-## Milestone 0 — Repo & contracts (foundation)
+## Milestone 0 — Contracts & Artifacts Lock-in
 
 ### Deliverables
 - Repo structure created (apps/, packages/, configs/, etc.)
 - Canonical schemas drafted in `packages/protocol/` (JSON Schema + bindings)
 - Safety policy config skeleton in `configs/moderation/`
 - Basic persona config examples in `configs/personas/`
+- Config schemas:
+    - `configs/schemas/persona.schema.json`
+    - `configs/schemas/room.schema.json`
+    - `configs/schemas/moderation.schema.json`
+- Prompt artifacts:
+    - `configs/prompts/message_generation.md`
+    - `configs/prompts/durable_extraction.jsonprompt`
+    - `configs/prompts/drift_reflection.jsonprompt`
+- Prompt-output schemas:
+    - `packages/protocol/jsonschema/memory_extraction.schema.json`
+    - `packages/protocol/jsonschema/drift_reflection.schema.json`
+- Fixtures for schemas and prompt outputs (under `data/schemas/...`):
+    - `StreamContext/1.0.0/{valid,invalid}`
+    - `ChatMessage/1.0.0/{valid,invalid}`
+    - `TrendsSnapshot/1.0.0/{valid,invalid}`
+    - `MemoryExtraction/1.0.0/{valid,invalid}`
+    - `DriftReflection/1.0.0/{valid,invalid}`
+- Validation scripts + npm command:
+    - Validators in `scripts/ops/` (Python + Ajv)
+    - `npm run validate:artifacts` wired in CI
 - Docs baseline:
     - `system_overview.md`
     - `protocols.md`
@@ -35,6 +55,8 @@ Related:
 - Every service agrees on message shape and fields.
 - At least one example JSON instance per schema passes validation.
 - Versioning rules documented and understood.
+
+This makes the system contract-driven and reduces rework for persona workers and other services.
 
 ---
 

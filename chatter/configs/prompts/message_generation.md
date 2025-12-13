@@ -1,0 +1,1 @@
+Compose a single chat message using {{persona_anchor_bio}}, follow {{voice_rules}}, respect max {{max_chars}} chars, consider {{stream_summary}}, keywords {{keywords}}, recent chat {{recent_chat_lines}}, and memories {{memory_bullets}}.
