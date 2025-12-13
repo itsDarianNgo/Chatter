@@ -2,6 +2,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -90,7 +91,26 @@ class SafetyProcessor:
             sanitized = moderation["content"]
         message["content"] = sanitized
         message["moderation"] = {k: v for k, v in moderation.items() if k != "content"}
-        trace = message.get("trace") or {}
-        trace.setdefault("producer", "chat_gateway")
-        message["trace"] = trace
+        self._apply_trace(message)
         return message
+
+    def _apply_trace(self, message: Dict[str, Any]) -> None:
+        trace = message.get("trace")
+        if not isinstance(trace, dict):
+            trace = {}
+
+        producer = trace.get("producer")
+        if not producer:
+            trace["producer"] = "unknown"
+
+        processed_by = trace.get("processed_by")
+        if isinstance(processed_by, list):
+            processed_by = [str(item) for item in processed_by if isinstance(item, (str, bytes))]
+        else:
+            processed_by = []
+        if "chat_gateway" not in processed_by:
+            processed_by.append("chat_gateway")
+        trace["processed_by"] = processed_by
+
+        trace.setdefault("gateway_ts", datetime.now(timezone.utc).isoformat())
+        message["trace"] = trace
