@@ -14,7 +14,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install Python dependencies
         working-directory: ./chatter
@@ -32,3 +32,65 @@ jobs:
       - name: Validate artifacts
         working-directory: ./chatter
         run: npm run validate:artifacts
+
+      - name: Run E2E firehose websocket test
+        working-directory: ./chatter
+        run: npm run test:e2e
+
+      - name: Start Milestone 1 stack
+        working-directory: ./chatter
+        run: docker compose up -d --build
+
+      - name: Wait for gateway health
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8080/healthz > /dev/null; then
+              echo "Gateway healthy"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Gateway did not become healthy in time"
+          exit 1
+
+      - name: Install persona_workers dependencies
+        working-directory: ./chatter
+        run: pip install fastapi uvicorn redis jsonschema
+
+      - name: Start persona_workers
+        working-directory: ./chatter
+        env:
+          REDIS_URL: redis://localhost:6379/0
+          FIREHOSE_STREAM: stream:chat.firehose
+          INGEST_STREAM: stream:chat.ingest
+          ROOM_CONFIG_PATH: configs/rooms/demo.json
+          PERSONA_CONFIG_DIR: configs/personas
+          HTTP_PORT: 8090
+        run: |
+          nohup python -m apps.persona_workers.src.main >/tmp/persona_workers.log 2>&1 &
+          echo $! > /tmp/pw.pid
+
+      - name: Wait for persona_workers health
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8090/healthz > /dev/null; then
+              echo "persona_workers healthy"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "persona_workers did not become healthy in time"
+          exit 1
+
+      - name: Run E2E botloop test
+        working-directory: ./chatter
+        run: npm run test:e2e:botloop
+
+      - name: Cleanup botloop environment
+        if: always()
+        working-directory: ./chatter
+        run: |
+          if [ -f /tmp/pw.pid ]; then
+            kill $(cat /tmp/pw.pid) || true
+          fi
+          docker compose down -v
