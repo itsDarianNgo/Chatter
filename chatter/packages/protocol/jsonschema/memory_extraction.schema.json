@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/protocol/memory_extraction.schema.json",
+  "title": "MemoryExtraction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "relationship_updates",
+    "new_catchphrases",
+    "preference_updates",
+    "lore_events"
+  ],
+  "properties": {
+    "relationship_updates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/RelationshipUpdate" }
+    },
+    "new_catchphrases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Catchphrase" }
+    },
+    "preference_updates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/PreferenceUpdate" }
+    },
+    "lore_events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/LoreEvent" }
+    }
+  },
+  "$defs": {
+    "Confidence": {
+      "type": "string",
+      "enum": ["low", "med", "high"]
+    },
+    "RelationshipUpdate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["other_user", "delta", "strength", "reason", "confidence"],
+      "properties": {
+        "other_user": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "delta": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+        "strength": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "confidence": { "$ref": "#/$defs/Confidence" }
+      }
+    },
+    "Catchphrase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phrase", "trigger", "confidence"],
+      "properties": {
+        "phrase": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "trigger": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "confidence": { "$ref": "#/$defs/Confidence" }
+      }
+    },
+    "PreferenceUpdate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topic", "stance", "reason", "confidence"],
+      "properties": {
+        "topic": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "stance": { "type": "string", "enum": ["like", "dislike", "obsessed", "avoid"] },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "confidence": { "$ref": "#/$defs/Confidence" }
+      }
+    },
+    "LoreEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "summary", "confidence"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "confidence": { "$ref": "#/$defs/Confidence" }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "config_type": "moderation",
+  "config_version": "1.0.0",
+  "blocklists": [
+    {
+      "name": "slurs",
+      "action": "drop",
+      "patterns": ["<REPLACE_WITH_REAL_PATTERNS>"],
+      "case_insensitive": true
+    },
+    {
+      "name": "harassment",
+      "action": "drop",
+      "patterns": ["<REPLACE_WITH_REAL_PATTERNS>"],
+      "case_insensitive": true
+    }
+  ],
+  "pii_patterns": [
+    { "kind": "pii_email", "regex": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}", "replacement": "[REDACTED]" },
+    { "kind": "pii_phone", "regex": "(\\+?\\d[\\d\\s\\-\\(\\)]{8,}\\d)", "replacement": "[REDACTED]" }
+  ],
+  "allowed_emotes": ["KEKW", "LUL", "OMEGALUL", "Pog"],
+  "link_policy": { "mode": "warn", "blocked_domains": [] }
+}

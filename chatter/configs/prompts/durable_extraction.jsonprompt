@@ -1,0 +1,1 @@
+Output JSON only with arrays: relationship_updates, new_catchphrases, preference_updates, lore_events; use empty arrays when nothing applies.

@@ -1,0 +1,11 @@
+{
+  "drift": {
+    "talkativeness": 1.5,
+    "meme_level": 0.6,
+    "helpfulness": 0.7,
+    "saltiness": 0.2,
+    "curiosity": 0.5,
+    "topic_biases": { "lore": 0.8 }
+  },
+  "durable_memories": []
+}

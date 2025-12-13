@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/config-schemas/persona.schema.json",
+  "title": "PersonaConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "config_type",
+    "config_version",
+    "persona_id",
+    "display_name",
+    "anchor",
+    "drift",
+    "drift_bounds",
+    "presentation",
+    "safety"
+  ],
+  "properties": {
+    "config_type": { "const": "persona" },
+    "config_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+
+    "persona_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 64 },
+
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bio", "voice_rules"],
+      "properties": {
+        "bio": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "voice_rules": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["style"],
+          "properties": {
+            "style": {
+              "type": "string",
+              "enum": ["deadpan", "hype", "snarky", "wholesome", "chaotic", "lorekeeper"]
+            },
+            "caps_style": { "type": "string", "enum": ["lower", "mixed", "upper"] },
+            "punctuation": { "type": "string", "enum": ["minimal", "normal", "heavy"] },
+            "emoji_density": { "type": "string", "enum": ["none", "low", "medium", "high"] },
+            "emote_habits": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "maxItems": 64
+            },
+            "catchphrase_seeds": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 120 },
+              "maxItems": 32
+            },
+            "banned_topics": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "maxItems": 64
+            }
+          }
+        }
+      }
+    },
+
+    "drift": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["talkativeness", "meme_level", "helpfulness", "saltiness", "curiosity", "topic_biases"],
+      "properties": {
+        "talkativeness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "meme_level": { "type": "number", "minimum": 0, "maximum": 1 },
+        "helpfulness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "saltiness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "curiosity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "topic_biases": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 },
+          "maxProperties": 128
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "maxItems": 32
+        }
+      }
+    },
+
+    "drift_bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["talkativeness", "meme_level", "helpfulness", "saltiness", "curiosity"],
+      "properties": {
+        "talkativeness": { "$ref": "#/$defs/BoundedKnob" },
+        "meme_level": { "$ref": "#/$defs/BoundedKnob" },
+        "helpfulness": { "$ref": "#/$defs/BoundedKnob" },
+        "saltiness": { "$ref": "#/$defs/BoundedKnob" },
+        "curiosity": { "$ref": "#/$defs/BoundedKnob" }
+      }
+    },
+
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["badges", "style"],
+      "properties": {
+        "badges": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 32 },
+          "maxItems": 16
+        },
+        "style": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name_color", "effects"],
+          "properties": {
+            "name_color": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+            "effects": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 32 },
+              "maxItems": 8
+            }
+          }
+        }
+      }
+    },
+
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hard_never_categories", "max_chars"],
+      "properties": {
+        "hard_never_categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["harassment", "slurs", "doxxing", "sexual_content", "self_harm", "illegal_instructions"]
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "max_chars": { "type": "integer", "minimum": 1, "maximum": 200 }
+      }
+    }
+  },
+  "$defs": {
+    "BoundedKnob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max", "max_delta"],
+      "properties": {
+        "min": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_delta": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.2 }
+      }
+    }
+  }
+}
