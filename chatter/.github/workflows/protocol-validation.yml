@@ -1,0 +1,34 @@
+name: Protocol Validation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate-protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        working-directory: ./chatter
+        run: pip install .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Node dependencies
+        working-directory: ./chatter
+        run: npm ci
+
+      - name: Validate protocol schemas
+        working-directory: ./chatter
+        run: npm run validate:protocol
