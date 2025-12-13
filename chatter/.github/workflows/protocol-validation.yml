@@ -14,7 +14,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install Python dependencies
         working-directory: ./chatter
@@ -29,6 +29,41 @@ jobs:
         working-directory: ./chatter
         run: npm ci
 
+      - name: Start compose stack
+        working-directory: ./chatter
+        run: docker compose up -d --build
+
+      - name: Wait for services
+        run: |
+          for i in {1..45}; do
+            if curl -sf http://localhost:8080/healthz > /dev/null; then
+              if curl -sf http://localhost:8090/healthz > /dev/null; then
+                echo "gateway and persona_workers healthy"
+                exit 0
+              fi
+            fi
+            sleep 1
+          done
+          echo "Services did not become healthy in time"
+          exit 1
+
       - name: Validate artifacts
         working-directory: ./chatter
         run: npm run validate:artifacts
+
+      - name: Run E2E firehose websocket test
+        working-directory: ./chatter
+        run: npm run test:e2e
+
+      - name: Run E2E botloop test
+        working-directory: ./chatter
+        run: npm run test:e2e:botloop
+
+      - name: Run E2E policy probe test
+        working-directory: ./chatter
+        run: npm run test:e2e:policy
+
+      - name: Cleanup compose
+        if: always()
+        working-directory: ./chatter
+        run: docker compose down -v
