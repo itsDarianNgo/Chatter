@@ -23,6 +23,11 @@
 - `infra/` — dev and deployment scaffolding
 - `docs/` — architecture docs and notes
 
+## Local demo (Milestone 1 slice)
+- Start Redis + gateway + UI: `docker compose up --build`
+- Open the UI at `http://localhost:5173` (connects to `ws://localhost:8080/ws`)
+- Optional load: `python apps/tools/stub_publisher/publish.py --rate 20`
+
 ## Core event channels (conceptual)
 - `stream.context` — rolling “what’s happening on stream”
 - `chat.ingest` — messages to be broadcast (bots + humans)
