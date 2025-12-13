@@ -86,6 +86,10 @@ jobs:
         working-directory: ./chatter
         run: npm run test:e2e:botloop
 
+      - name: Run E2E policy probe test
+        working-directory: ./chatter
+        run: npm run test:e2e:policy
+
       - name: Cleanup botloop environment
         if: always()
         working-directory: ./chatter

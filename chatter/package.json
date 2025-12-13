@@ -17,7 +17,9 @@
     "demo:publisher": "python apps/tools/stub_publisher/publish.py --rate 10",
     "test:e2e": "bash scripts/integration/e2e_firehose_ws_test.sh",
     "test:e2e:botloop": "bash scripts/integration/e2e_botloop_test.sh",
-    "test:e2e:botloop:ps": "powershell -ExecutionPolicy Bypass -File scripts\\integration\\e2e_botloop_test.ps1"
+    "test:e2e:botloop:ps": "powershell -ExecutionPolicy Bypass -File scripts\\integration\\e2e_botloop_test.ps1",
+    "test:e2e:policy": "bash scripts/integration/e2e_policy_probe_test.sh",
+    "test:e2e:policy:ps": "powershell -ExecutionPolicy Bypass -File scripts\\integration\\e2e_policy_probe_test.ps1"
   },
   "dependencies": {
     "ajv": "^8.17.1",
