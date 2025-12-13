@@ -23,6 +23,27 @@ services:
     depends_on:
       - redis
 
+  persona_workers:
+    build:
+      context: .
+      dockerfile: apps/persona_workers/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      FIREHOSE_STREAM: stream:chat.firehose
+      INGEST_STREAM: stream:chat.ingest
+      ROOM_CONFIG_PATH: configs/rooms/demo.json
+      PERSONA_CONFIG_DIR: configs/personas
+      HTTP_PORT: 8090
+      LOG_LEVEL: INFO
+    volumes:
+      - ./:/app:ro
+    ports:
+      - "8090:8090"
+    depends_on:
+      - redis
+      - chat_gateway
+    restart: unless-stopped
+
   web_ui:
     image: nginx:alpine
     volumes:
