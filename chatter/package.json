@@ -1,0 +1,14 @@
+{
+  "name": "chatter",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "validate:protocol:node": "node scripts/ops/validate_protocol_schemas.mjs",
+    "validate:protocol:python": "python scripts/ops/validate_protocol_schemas.py",
+    "validate:protocol": "npm run validate:protocol:node && npm run validate:protocol:python"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}
