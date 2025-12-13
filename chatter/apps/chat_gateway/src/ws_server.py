@@ -26,7 +26,6 @@ class WebSocketManager:
                 await self._worker
 
     async def connect(self, websocket: WebSocket, room_id: str) -> None:
-        await websocket.accept()
         self.rooms[room_id].add(websocket)
         logger.info("WebSocket connected to %s", room_id)
 
@@ -64,6 +63,7 @@ class WebSocketManager:
 
     async def handle_client(self, websocket: WebSocket, default_room: str, subscribe_timeout: float) -> None:
         room = default_room
+        await websocket.accept()
         try:
             try:
                 text = await asyncio.wait_for(websocket.receive_text(), timeout=subscribe_timeout)
@@ -71,12 +71,18 @@ class WebSocketManager:
                 if isinstance(data, dict) and data.get("type") == "subscribe" and isinstance(data.get("room_id"), str):
                     room = data["room_id"]
             except (asyncio.TimeoutError, json.JSONDecodeError, WebSocketDisconnect):
-                pass
+                logger.debug("WebSocket subscribe defaulting to %s", room)
             await self.connect(websocket, room)
+            await websocket.send_text(json.dumps({"type": "subscribed", "room_id": room}))
             while True:
-                await websocket.receive_text()
+                try:
+                    await websocket.receive_text()
+                except WebSocketDisconnect:
+                    raise
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Ignoring client message error for %s: %s", room, exc)
         except WebSocketDisconnect:
             self.disconnect(websocket, room)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("WebSocket error: %s", exc)
+            logger.warning("WebSocket error for %s: %s", room, exc)
             self.disconnect(websocket, room)
