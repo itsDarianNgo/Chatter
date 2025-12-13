@@ -30,7 +30,7 @@ echo "Publishing test message with marker ${MARKER} to ${INGEST_STREAM}..."
 docker exec "${REDIS_CONTAINER}" redis-cli XADD "${INGEST_STREAM}" * data "${PAYLOAD}" >/dev/null
 
 echo "Waiting for WebSocket delivery from ${WS_URL}..."
-if timeout 10 npx --yes wscat@8 -c "${WS_URL}" -x "{\"type\":\"subscribe\",\"room_id\":\"${ROOM_ID}\"}" 2>/tmp/wscat.err | grep -m1 "${MARKER}"; then
+if timeout 10 npx --yes wscat@latest -c "${WS_URL}" -x "{\"type\":\"subscribe\",\"room_id\":\"${ROOM_ID}\"}" 2>/tmp/wscat.err | grep -m1 "${MARKER}"; then
   echo "PASS: Received message with marker over WebSocket."
 else
   echo "FAIL: Did not receive message over WebSocket within timeout." >&2
