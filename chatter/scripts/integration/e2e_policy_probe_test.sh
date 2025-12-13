@@ -21,20 +21,30 @@ TEST_ID="${ID_TS}_$$"
 MARKER="E2E_TEST_POLICY_${TEST_ID}"
 
 fail_with_stats() {
-  local message="$1" stats="$2"
+  local message="$1" stats="$2" key="${3:-}"
   echo "FAIL: ${message}" >&2
+  if [ -n "${key}" ]; then
+    echo "Requested key: ${key}" >&2
+  fi
   echo "---- /stats ----" >&2
   echo "${stats}" >&2
   exit 1
 }
 
 fetch_stats() {
-  curl -s "${PERSONA_HTTP}/stats"
+  curl -s "${PERSONA_HTTP}/stats" | {
+    if command -v python >/dev/null 2>&1; then
+      python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(",", ":")))'
+    else
+      tr -d '\n'
+    fi
+  }
 }
 
 get_counter() {
-  local stats="$1" key="$2"
-  printf '%s' "${stats}" | python - "$key" <<'PY'
+  local stats="$1" key="$2" value=""
+  if [[ "${key}" == *.* ]]; then
+    value=$(printf '%s' "${stats}" | python - "$key" <<'PY'
 import json, sys
 key = sys.argv[1]
 try:
@@ -54,6 +64,11 @@ if isinstance(val, (int, float)):
 else:
     print("")
 PY
+)
+  else
+    value=$(echo "${stats}" | sed -n "s/.*\"${key}\":\([0-9]\+\).*/\1/p" | head -n1)
+  fi
+  echo "${value}"
 }
 
 require_counter() {
@@ -61,7 +76,7 @@ require_counter() {
   local value
   value=$(get_counter "${stats}" "${key}")
   if [ -z "${value}" ]; then
-    fail_with_stats "Missing counter for ${label} (${key})" "${stats}"
+    fail_with_stats "Missing counter for ${label} (${key})" "${stats}" "${key}"
   fi
   echo "${value}"
 }
