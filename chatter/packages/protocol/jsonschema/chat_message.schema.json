@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/schemas/chat_message.schema.json",
+  "title": "ChatMessage",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "id",
+    "ts",
+    "room_id",
+    "origin",
+    "user_id",
+    "display_name",
+    "content",
+    "mentions",
+    "emotes",
+    "badges"
+  ],
+  "properties": {
+    "schema_name": { "const": "ChatMessage" },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128,
+      "description": "Globally unique message id."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp (ISO-8601)."
+    },
+    "room_id": {
+      "type": "string",
+      "pattern": "^room:[A-Za-z0-9._-]{1,128}$"
+    },
+    "origin": {
+      "type": "string",
+      "enum": ["bot", "human", "system"],
+      "description": "Message origin."
+    },
+    "user_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Stable speaker identifier."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Visible speaker name."
+    },
+    "content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[^\\r\\n]*$",
+      "description": "Single-line chat content."
+    },
+    "reply_to": {
+      "type": ["string", "null"],
+      "minLength": 8,
+      "maxLength": 128,
+      "description": "Message id being replied to."
+    },
+    "mentions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "maxItems": 32,
+      "description": "List of mentioned user_ids."
+    },
+    "emotes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EmoteToken" },
+      "maxItems": 64,
+      "description": "Optional parsed emote tokens."
+    },
+    "badges": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 32 },
+      "maxItems": 16,
+      "description": "Badges like mod/vip/subscriber."
+    },
+    "style": {
+      "anyOf": [
+        { "$ref": "#/$defs/ChatStyle" },
+        { "type": "null" }
+      ],
+      "description": "Optional rendering hints."
+    },
+    "client_meta": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "Optional UI hints; gateway may normalize/strip."
+    },
+    "moderation": {
+      "anyOf": [
+        { "$ref": "#/$defs/ModerationMeta" },
+        { "type": "null" }
+      ],
+      "description": "Moderation outcome metadata (typically set by gateway)."
+    },
+    "trace": {
+      "anyOf": [
+        { "$ref": "#/$defs/TraceMeta" },
+        { "type": "null" }
+      ],
+      "description": "Optional tracing/diagnostics metadata."
+    }
+  },
+  "$defs": {
+    "EmoteToken": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["code"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "provider": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ChatStyle": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "name_color": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{6})$",
+          "description": "Hex color."
+        },
+        "message_color": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{6})$",
+          "description": "Hex color."
+        },
+        "effects": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 32 },
+          "maxItems": 8
+        }
+      }
+    },
+    "ModerationMeta": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["action", "reasons", "redactions"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["allow", "redact", "drop"]
+        },
+        "reasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "maxItems": 32
+        },
+        "redactions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Redaction" },
+          "maxItems": 32
+        }
+      }
+    },
+    "Redaction": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["kind", "start", "end", "replacement"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 },
+        "replacement": { "type": "string", "minLength": 1, "maxLength": 32 }
+      }
+    },
+    "TraceMeta": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "producer": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "request_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "llm_ms": { "type": "integer", "minimum": 0 },
+        "mem_ms": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_name": "ChatMessage",
+      "schema_version": "1.0.0",
+      "id": "01JH7Y0M2KQ8T8G2A9F6G1VQ1N",
+      "ts": "2025-12-12T20:15:06.010Z",
+      "room_id": "room:mychannel",
+      "origin": "bot",
+      "user_id": "ClipGoblin",
+      "display_name": "ClipGoblin",
+      "content": "LEFT LEFT LEFT chat!!! KEKW",
+      "reply_to": null,
+      "mentions": [],
+      "emotes": [{ "code": "KEKW", "provider": "twitch" }],
+      "badges": ["vip"],
+      "style": { "name_color": "#30D5C8", "effects": [] },
+      "client_meta": null,
+      "moderation": null,
+      "trace": { "producer": "persona_workers", "llm_ms": 420, "mem_ms": 65 }
+    }
+  ]
+}

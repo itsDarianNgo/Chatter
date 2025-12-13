@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/schemas/trends_snapshot.schema.json",
+  "title": "TrendsSnapshot",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "id",
+    "ts",
+    "room_id",
+    "window_s",
+    "msg_per_s",
+    "top_tokens",
+    "top_mentions",
+    "bot_fraction"
+  ],
+  "properties": {
+    "schema_name": { "const": "TrendsSnapshot" },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "room_id": {
+      "type": "string",
+      "pattern": "^room:[A-Za-z0-9._-]{1,128}$"
+    },
+    "window_s": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 300,
+      "description": "Rolling window size in seconds."
+    },
+    "msg_per_s": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Estimated message velocity."
+    },
+    "top_tokens": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TokenCount" },
+      "maxItems": 50,
+      "description": "Top tokens/emotes within the window."
+    },
+    "top_mentions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TokenCount" },
+      "maxItems": 50,
+      "description": "Most mentioned users within the window."
+    },
+    "bot_fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Estimated fraction of messages from bots (0–1)."
+    },
+    "meta": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "Optional producer metadata."
+    }
+  },
+  "$defs": {
+    "TokenCount": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["token", "count"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_name": "TrendsSnapshot",
+      "schema_version": "1.0.0",
+      "id": "01JH7Y0R5KX6K0A1YV7A3XQH8D",
+      "ts": "2025-12-12T20:15:07.000Z",
+      "room_id": "room:mychannel",
+      "window_s": 15,
+      "msg_per_s": 7.4,
+      "top_tokens": [
+        { "token": "KEKW", "count": 32 },
+        { "token": "LEFT", "count": 21 }
+      ],
+      "top_mentions": [
+        { "token": "ClipGoblin", "count": 9 }
+      ],
+      "bot_fraction": 0.62,
+      "meta": { "source": "gateway_trends" }
+    }
+  ]
+}
