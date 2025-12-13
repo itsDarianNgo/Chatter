@@ -11,6 +11,8 @@ dependencies = ["jsonschema>=4.0.0"]
 
 [project.scripts]
 validate-protocol-schemas = "scripts.ops.validate_protocol_schemas:main"
+validate-configs = "scripts.ops.validate_configs:main"
+validate-prompt-outputs = "scripts.ops.validate_prompt_outputs:main"
 
 [tool.setuptools.packages.find]
 include = ["scripts*"]

@@ -1,0 +1,25 @@
+{
+  "config_type": "room",
+  "config_version": "1.0.0",
+  "room_id": "room:demo",
+  "enabled_personas": ["ClipGoblin", "LoreMaster3000", "SaltGremlin"],
+  "hype_multiplier": 1.0,
+  "features": { "enable_firehose_read": true, "enable_trends_read": false },
+  "limits": { "max_llm_concurrency": 8, "max_mem0_concurrency": 8, "max_chars_per_message": 160 },
+  "policy": {
+    "bot_react_to_bot_weight": 0.25,
+    "mention_boost": 3.0,
+    "event_alpha": 1.5,
+    "trend_alpha": 0.8,
+    "bot_gamma": 0.7,
+    "p_cap": 0.9
+  },
+  "timing": {
+    "tick_min_ms": 250,
+    "tick_max_ms": 800,
+    "mention_window_s": 10,
+    "reflection_interval_s": 300,
+    "reflection_message_count": 30,
+    "soft_cooldown_ms": 900
+  }
+}

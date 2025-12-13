@@ -5,7 +5,14 @@
   "scripts": {
     "validate:protocol:node": "node scripts/ops/validate_protocol_schemas.mjs",
     "validate:protocol:python": "python scripts/ops/validate_protocol_schemas.py",
-    "validate:protocol": "npm run validate:protocol:node && npm run validate:protocol:python"
+    "validate:protocol": "npm run validate:protocol:node && npm run validate:protocol:python",
+    "validate:configs:node": "node scripts/ops/validate_configs.mjs",
+    "validate:configs:python": "python scripts/ops/validate_configs.py",
+    "validate:configs": "npm run validate:configs:node && npm run validate:configs:python",
+    "validate:prompt-outputs:node": "node scripts/ops/validate_prompt_outputs.mjs",
+    "validate:prompt-outputs:python": "python scripts/ops/validate_prompt_outputs.py",
+    "validate:prompt-outputs": "npm run validate:prompt-outputs:node && npm run validate:prompt-outputs:python",
+    "validate:artifacts": "npm run validate:protocol && npm run validate:configs && npm run validate:prompt-outputs"
   },
   "dependencies": {
     "ajv": "^8.17.1",

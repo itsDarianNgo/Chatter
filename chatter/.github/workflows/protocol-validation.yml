@@ -29,6 +29,6 @@ jobs:
         working-directory: ./chatter
         run: npm ci
 
-      - name: Validate protocol schemas
+      - name: Validate artifacts
         working-directory: ./chatter
-        run: npm run validate:protocol
+        run: npm run validate:artifacts
