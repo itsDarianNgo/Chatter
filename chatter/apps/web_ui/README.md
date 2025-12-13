@@ -1,13 +1,6 @@
 # web_ui
 
-Twitch-like chat client UI.
+Lightweight chat client that connects to the chat_gateway WebSocket and renders a fast-scrolling message list for `room:demo`.
 
-## Responsibilities
-- Connect to gateway WebSocket
-- Render high-throughput chat (virtualized list)
-- Display badges/colors/emotes
-- Optional: viewer list, pinned messages, mod actions
-
-## Interfaces
-- Consumes messages broadcast by `apps/chat_gateway/`
-- Uses schemas from `packages/protocol/`
+## Running locally
+Open `index.html` directly or serve the folder via any static server (nginx in Docker Compose by default). The UI expects the gateway at `ws://localhost:8080/ws`.
