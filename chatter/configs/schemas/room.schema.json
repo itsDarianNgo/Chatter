@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/config-schemas/room.schema.json",
+  "title": "RoomConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["config_type", "config_version", "room_id", "enabled_personas", "hype_multiplier", "features", "limits", "policy", "timing"],
+  "properties": {
+    "config_type": { "const": "room" },
+    "config_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+
+    "room_id": { "type": "string", "pattern": "^room:[A-Za-z0-9._-]{1,128}$" },
+
+    "enabled_personas": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "minItems": 1,
+      "maxItems": 256
+    },
+
+    "hype_multiplier": { "type": "number", "minimum": 0, "maximum": 5 },
+
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enable_firehose_read", "enable_trends_read"],
+      "properties": {
+        "enable_firehose_read": { "type": "boolean" },
+        "enable_trends_read": { "type": "boolean" }
+      }
+    },
+
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_llm_concurrency", "max_mem0_concurrency", "max_chars_per_message"],
+      "properties": {
+        "max_llm_concurrency": { "type": "integer", "minimum": 1, "maximum": 512 },
+        "max_mem0_concurrency": { "type": "integer", "minimum": 1, "maximum": 512 },
+        "max_chars_per_message": { "type": "integer", "minimum": 1, "maximum": 200 }
+      }
+    },
+
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bot_react_to_bot_weight", "mention_boost", "event_alpha", "trend_alpha", "bot_gamma", "p_cap"],
+      "properties": {
+        "bot_react_to_bot_weight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mention_boost": { "type": "number", "minimum": 1, "maximum": 10 },
+        "event_alpha": { "type": "number", "minimum": 0, "maximum": 5 },
+        "trend_alpha": { "type": "number", "minimum": 0, "maximum": 5 },
+        "bot_gamma": { "type": "number", "minimum": 0, "maximum": 1 },
+        "p_cap": { "type": "number", "minimum": 0.1, "maximum": 0.95 }
+      }
+    },
+
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tick_min_ms", "tick_max_ms", "mention_window_s", "reflection_interval_s", "reflection_message_count", "soft_cooldown_ms"],
+      "properties": {
+        "tick_min_ms": { "type": "integer", "minimum": 50, "maximum": 5000 },
+        "tick_max_ms": { "type": "integer", "minimum": 50, "maximum": 5000 },
+        "mention_window_s": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "reflection_interval_s": { "type": "integer", "minimum": 60, "maximum": 3600 },
+        "reflection_message_count": { "type": "integer", "minimum": 5, "maximum": 500 },
+        "soft_cooldown_ms": { "type": "integer", "minimum": 0, "maximum": 10000 }
+      }
+    }
+  }
+}

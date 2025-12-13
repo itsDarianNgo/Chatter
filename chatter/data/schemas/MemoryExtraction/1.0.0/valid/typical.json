@@ -1,0 +1,20 @@
+{
+  "relationship_updates": [
+    {
+      "other_user": "viewer123",
+      "delta": "positive",
+      "strength": 0.6,
+      "reason": "Cheered the agent after a clutch clip",
+      "confidence": "high"
+    }
+  ],
+  "new_catchphrases": [
+    { "phrase": "clip city", "trigger": "hype moments", "confidence": "med" }
+  ],
+  "preference_updates": [
+    { "topic": "clutch", "stance": "obsessed", "reason": "Loves big turnarounds", "confidence": "high" }
+  ],
+  "lore_events": [
+    { "name": "comeback_arc", "summary": "Declared a new comeback arc after a reverse sweep", "confidence": "med" }
+  ]
+}
