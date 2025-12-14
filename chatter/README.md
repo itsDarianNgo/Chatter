@@ -40,6 +40,9 @@
 - Windows users should run the bash scripts via Git Bash or WSL; a PowerShell helper is available at `scripts/integration/compose_test_e2e.ps1`.
 - For local overrides, copy `.env.example` to `.env` (do not commit it) and adjust values such as `OPENAI_API_KEY` if you plan to run the LiteLLM smoke test.
 - Memory remains disabled by default; the compose test overlay enables the stub memory backend and fixtures. Tweak `MEMORY_ENABLED`, `MEMORY_BACKEND`, `MEMORY_POLICY_PATH`, and `MEMORY_FIXTURES_PATH` in a local `.env` to experiment without affecting CI.
+- Memory extraction strategies: `MEMORY_EXTRACT_STRATEGY` supports `heuristic` (default) and `llm`. The latter renders the memory extract prompt and calls the configured LLM provider.
+- Deterministic LLM extraction (stub provider) can be exercised via `npm run compose:test:e2e:memory:llm`.
+- A Mem0 backend is available for local smoke testing: set `MEMORY_ENABLED=true`, `MEMORY_BACKEND=mem0`, and `MEM0_API_KEY` (plus optional `MEM0_ORG_ID`/`MEM0_PROJECT_ID`) in a local `.env`, then run `npm run test:mem0:smoke` (skips cleanly when no key is present).
 
 ## Core event channels (conceptual)
 - `stream.context` — rolling “what’s happening on stream”
