@@ -10,38 +10,34 @@ CONNECT_TIMEOUT_S=${CONNECT_TIMEOUT_S:-10}
 
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 2; }
 command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 2; }
+command -v python >/dev/null 2>&1 || { echo "python is required" >&2; exit 2; }
 
 fetch_stats() {
-  curl -s "${PERSONA_HTTP}/stats" | {
-    if command -v python >/dev/null 2>&1; then
-      python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(",", ":")))'
-    else
-      tr -d '\n'
-    fi
-  }
+  # Canonicalize JSON to a single line for easier debugging/comparison.
+  curl -s "${PERSONA_HTTP}/stats" | python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(",", ":")))'
 }
 
 extract_int() {
   local stats="$1" key="$2"
-  python - "$key" <<<"${stats}" <<'PY'
+  python -c '
 import json,sys
+key=sys.argv[1]
 try:
     data=json.load(sys.stdin)
 except Exception:
     print("")
     sys.exit(0)
-key=sys.argv[1]
 val=data.get(key)
 if isinstance(val,(int,float)):
     print(int(val))
 else:
     print("")
-PY
+' "$key" <<<"${stats}"
 }
 
 extract_bool() {
   local stats="$1" key="$2"
-  python - "$key" <<<"${stats}" <<'PY'
+  python -c '
 import json,sys
 key=sys.argv[1]
 try:
@@ -52,16 +48,16 @@ except Exception:
 val=data.get(key)
 if isinstance(val,bool):
     print("true" if val else "false")
-elif isinstance(val,str) and val.lower() in ("true","false"):
-    print(val.lower())
+elif isinstance(val,str) and val.strip().lower() in ("true","false"):
+    print(val.strip().lower())
 else:
     print("")
-PY
+' "$key" <<<"${stats}"
 }
 
 extract_string() {
   local stats="$1" key="$2"
-  python - "$key" <<<"${stats}" <<'PY'
+  python -c '
 import json,sys
 key=sys.argv[1]
 try:
@@ -72,15 +68,17 @@ except Exception:
 val=data.get(key)
 if isinstance(val,str):
     print(val)
+elif val is None:
+    print("")
 else:
     print("")
-PY
+' "$key" <<<"${stats}"
 }
 
 require_counter() {
   local stats="$1" key="$2" label="$3"
   local val
-  val=$(extract_int "${stats}" "${key}")
+  val="$(extract_int "${stats}" "${key}")"
   if [ -z "${val}" ]; then
     echo "FAIL: missing counter ${label} (${key})" >&2
     echo "---- /stats ----" >&2
@@ -101,24 +99,30 @@ EJSON
   printf '%s' "${payload}" | docker exec -i "${REDIS_CONTAINER}" redis-cli -x XADD "${INGEST_STREAM}" "*" data >/dev/null
 }
 
+# Ensure service reachable
 if ! curl -sf "${PERSONA_HTTP}/healthz" >/dev/null; then
   echo "FAIL: persona_workers not reachable at ${PERSONA_HTTP}/healthz" >&2
   exit 1
 fi
 
-BASE_STATS=$(fetch_stats)
-MEMORY_ENABLED=$(extract_bool "${BASE_STATS}" "memory_enabled")
+BASE_STATS="$(fetch_stats)"
+
+MEMORY_ENABLED="$(extract_bool "${BASE_STATS}" "memory_enabled")"
 if [ "${MEMORY_ENABLED}" != "true" ]; then
-  LAST_ERR=$(extract_string "${BASE_STATS}" "last_memory_error")
+  LAST_ERR="$(extract_string "${BASE_STATS}" "last_memory_error")"
   echo "FAIL: memory is disabled; last_memory_error=${LAST_ERR}" >&2
+  echo "---- /stats ----" >&2
+  echo "${BASE_STATS}" >&2
   exit 1
 fi
-BASE_WRITES=$(require_counter "${BASE_STATS}" "memory_writes_accepted" "memory_writes_accepted")
-BASE_READS=$(require_counter "${BASE_STATS}" "memory_reads_succeeded" "memory_reads_succeeded")
-BASE_ITEMS=$(require_counter "${BASE_STATS}" "memory_items_total" "memory_items_total")
+
+BASE_WRITES="$(require_counter "${BASE_STATS}" "memory_writes_accepted" "memory_writes_accepted")"
+BASE_READS="$(require_counter "${BASE_STATS}" "memory_reads_succeeded" "memory_reads_succeeded")"
+BASE_ITEMS="$(require_counter "${BASE_STATS}" "memory_items_total" "memory_items_total")"
 
 TEST_ID="E2E_TEST_MEMORY_${SECONDS}_$$"
 WRITE_CONTENT="remember: the streamer is called Captain (${TEST_ID}_WRITE)"
+# Must include E2E_TEST_ so the policy engine forces at least one persona to speak → triggers read-before-generate.
 READ_CONTENT="E2E_TEST_MEMORY_READ_${TEST_ID} who is the streamer called?"
 
 publish_message "memory_write_${TEST_ID}" "human" "${WRITE_CONTENT}" "user:mem" "mem_user"
@@ -127,9 +131,9 @@ start=$SECONDS
 write_ok=false
 while (( SECONDS - start < 10 )); do
   sleep "${WAIT_AFTER_PUBLISH_S}"
-  CUR_STATS=$(fetch_stats)
-  CUR_WRITES=$(require_counter "${CUR_STATS}" "memory_writes_accepted" "memory_writes_accepted")
-  CUR_ITEMS=$(require_counter "${CUR_STATS}" "memory_items_total" "memory_items_total")
+  CUR_STATS="$(fetch_stats)"
+  CUR_WRITES="$(require_counter "${CUR_STATS}" "memory_writes_accepted" "memory_writes_accepted")"
+  CUR_ITEMS="$(require_counter "${CUR_STATS}" "memory_items_total" "memory_items_total")"
   if (( CUR_WRITES >= BASE_WRITES + 1 )) && (( CUR_ITEMS >= BASE_ITEMS + 1 )); then
     write_ok=true
     break
@@ -148,8 +152,8 @@ start_read=$SECONDS
 read_ok=false
 while (( SECONDS - start_read < CONNECT_TIMEOUT_S )); do
   sleep 1
-  AFTER_STATS=$(fetch_stats)
-  CUR_READS=$(require_counter "${AFTER_STATS}" "memory_reads_succeeded" "memory_reads_succeeded")
+  AFTER_STATS="$(fetch_stats)"
+  CUR_READS="$(require_counter "${AFTER_STATS}" "memory_reads_succeeded" "memory_reads_succeeded")"
   if (( CUR_READS >= BASE_READS + 1 )); then
     read_ok=true
     break
@@ -162,10 +166,10 @@ if [ "${read_ok}" != "true" ]; then
   exit 1
 fi
 
-FINAL_STATS=${AFTER_STATS:-$(fetch_stats)}
-FINAL_WRITES=$(require_counter "${FINAL_STATS}" "memory_writes_accepted" "memory_writes_accepted")
-FINAL_ITEMS=$(require_counter "${FINAL_STATS}" "memory_items_total" "memory_items_total")
-FINAL_READS=$(require_counter "${FINAL_STATS}" "memory_reads_succeeded" "memory_reads_succeeded")
+FINAL_STATS="${AFTER_STATS:-$(fetch_stats)}"
+FINAL_WRITES="$(require_counter "${FINAL_STATS}" "memory_writes_accepted" "memory_writes_accepted")"
+FINAL_ITEMS="$(require_counter "${FINAL_STATS}" "memory_items_total" "memory_items_total")"
+FINAL_READS="$(require_counter "${FINAL_STATS}" "memory_reads_succeeded" "memory_reads_succeeded")"
 
 if (( FINAL_WRITES < BASE_WRITES + 1 )) || (( FINAL_ITEMS < BASE_ITEMS + 1 )) || (( FINAL_READS < BASE_READS + 1 )); then
   echo "FAIL: expected counters to increase" >&2

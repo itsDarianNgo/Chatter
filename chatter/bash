@@ -1,0 +1,138 @@
+Bringing up compose stack...
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.13kB done
+#1 DONE 0.0s
+
+#2 [persona_workers internal] load build definition from Dockerfile
+#2 transferring dockerfile: 733B done
+#2 DONE 0.0s
+
+#3 [chat_gateway internal] load build definition from Dockerfile
+#3 transferring dockerfile: 650B done
+#3 DONE 0.0s
+
+#4 [chat_gateway internal] load metadata for docker.io/library/python:3.11-slim
+#4 DONE 0.2s
+
+#5 [persona_workers internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [persona_workers 1/7] FROM docker.io/library/python:3.11-slim@sha256:158caf0e080e2cd74ef2879ed3c4e697792ee65251c8208b7afb56683c32ea6c
+#6 resolve docker.io/library/python:3.11-slim@sha256:158caf0e080e2cd74ef2879ed3c4e697792ee65251c8208b7afb56683c32ea6c 0.0s done
+#6 DONE 0.1s
+
+#7 [persona_workers internal] load build context
+#7 transferring context: 107.58kB 0.0s done
+#7 DONE 0.1s
+
+#8 [chat_gateway internal] load build context
+#8 transferring context: 25.77kB 0.0s done
+#8 DONE 0.1s
+
+#9 [persona_workers 6/7] COPY configs ./configs
+#9 CACHED
+
+#10 [persona_workers 2/7] WORKDIR /app
+#10 CACHED
+
+#11 [persona_workers 4/7] COPY apps/persona_workers ./apps/persona_workers
+#11 CACHED
+
+#12 [persona_workers 5/7] COPY packages ./packages
+#12 CACHED
+
+#13 [persona_workers 3/7] RUN pip install --no-cache-dir fastapi uvicorn[standard] redis jsonschema
+#13 CACHED
+
+#14 [persona_workers 7/7] COPY pyproject.toml ./
+#14 CACHED
+
+#15 [persona_workers] exporting to image
+#15 ...
+
+#16 [chat_gateway 3/7] COPY pyproject.toml ./
+#16 CACHED
+
+#17 [chat_gateway 4/7] RUN pip install --no-cache-dir --upgrade pip     && pip install --no-cache-dir fastapi uvicorn[standard] redis jsonschema
+#17 CACHED
+
+#18 [chat_gateway 6/7] COPY packages ./packages
+#18 CACHED
+
+#10 [chat_gateway 2/7] WORKDIR /app
+#10 CACHED
+
+#19 [chat_gateway 5/7] COPY apps/chat_gateway ./apps/chat_gateway
+#19 CACHED
+
+#20 [chat_gateway 7/7] COPY configs ./configs
+#20 CACHED
+
+#15 [persona_workers] exporting to image
+#15 exporting layers done
+#15 exporting manifest sha256:365eee00ef0ff1834b5f78a21d6a355e52e5c934d58fa19b6f95a28e7438c3c2 done
+#15 exporting config sha256:16a9d8277d32714efae9d4770a7d4554792745c25fa3ceb3bda9c460ed0d95b9 done
+#15 exporting attestation manifest sha256:75022fe14ab09a2dce375e47d42011a7133408c0aa6c8ec16722913167a1d75f 0.1s done
+#15 exporting manifest list sha256:dd2794a90021371ac271e373f592f9893e2360f0aedab79703e25cdc4dc72e97
+#15 ...
+
+#21 [chat_gateway] exporting to image
+#21 exporting layers done
+#21 exporting manifest sha256:1c66358960b4af3657a593717fd0e6a05ccd70858173d37c8b7cb1dd453b8efa done
+#21 exporting config sha256:123d5d4595e506cbbd2654e8a536c6d5c28c0397a42b41bf07513291f284429f 0.0s done
+#21 exporting attestation manifest sha256:a23aeaaf91c88103cba8348323008612122d2ccf7472cdfc32278973b796f161 0.1s done
+#21 exporting manifest list sha256:cf96286cac648f51e465fd9c5f2d0d47eb755a2e18650f2f3ed5bc331c3dc3cb 0.0s done
+#21 naming to docker.io/library/chatter-chat_gateway:latest done
+#21 unpacking to docker.io/library/chatter-chat_gateway:latest 0.0s done
+#21 DONE 0.2s
+
+#15 [persona_workers] exporting to image
+#15 exporting manifest list sha256:dd2794a90021371ac271e373f592f9893e2360f0aedab79703e25cdc4dc72e97 0.0s done
+#15 naming to docker.io/library/chatter-persona_workers:latest done
+#15 unpacking to docker.io/library/chatter-persona_workers:latest
+#15 ...
+
+#22 [chat_gateway] resolving provenance for metadata file
+#22 DONE 0.0s
+
+#15 [persona_workers] exporting to image
+#15 unpacking to docker.io/library/chatter-persona_workers:latest 0.7s done
+#15 DONE 0.9s
+
+#23 [persona_workers] resolving provenance for metadata file
+#23 DONE 0.0s
+Waiting for gateway and persona_workers health...
+gateway healthy
+persona_workers healthy
+Running E2E tests...
+
+> chatter@0.0.0 test:e2e
+> bash scripts/integration/e2e_firehose_ws_test.sh
+
+Connecting to WebSocket at ws://localhost:8080/ws and subscribing to room:demo...
+Publishing test message with marker E2E_TEST_20251214T005936Z_4541 to stream:chat.ingest...
+Waiting for WebSocket delivery (timeout 12s)...
+PASS: Received message with marker over WebSocket.
+Checking firehose for marker and trace metadata...
+PASS: Firehose entry contains marker, original producer, and chat_gateway processing stamp.
+
+> chatter@0.0.0 test:e2e:botloop
+> bash scripts/integration/e2e_botloop_test.sh
+
+Connecting WS (ws://localhost:8080/ws) and subscribing to room:demo...
+Publishing human trigger (E2E_TEST_BOTLOOP_20251214T005941Z_4639) to stream:chat.ingest...
+Waiting for bot reply over WS (timeout 15s)...
+PASS: Saw bot reply over WS containing marker and persona_worker trace.
+Checking firehose for bot reply (marker + persona_worker + processed_by chat_gateway)...
+PASS: Bot loop verified (firehose → persona_workers → ingest → gateway → WS → firehose).
+
+> chatter@0.0.0 test:e2e:policy
+> bash scripts/integration/e2e_policy_probe_test.sh
+
+Connecting WS (ws://localhost:8080/ws) to room:demo (best-effort)...
+PASS: policy probe succeeded
+bot_origin delta: 18
+cooldown delta: 8
+messages_published delta: 5
+e2e_forced delta: 0
