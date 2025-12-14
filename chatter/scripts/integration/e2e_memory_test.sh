@@ -121,7 +121,7 @@ BASE_READS="$(require_counter "${BASE_STATS}" "memory_reads_succeeded" "memory_r
 BASE_ITEMS="$(require_counter "${BASE_STATS}" "memory_items_total" "memory_items_total")"
 
 TEST_ID="E2E_TEST_MEMORY_${SECONDS}_$$"
-WRITE_CONTENT="remember: the streamer is called Captain (${TEST_ID}_WRITE)"
+WRITE_CONTENT="remember: @ClipGoblin the streamer is called Captain (${TEST_ID}_WRITE)"
 # Must include E2E_TEST_ so the policy engine forces at least one persona to speak → triggers read-before-generate.
 READ_CONTENT="E2E_TEST_MEMORY_READ_${TEST_ID} who is the streamer called?"
 

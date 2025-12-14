@@ -180,17 +180,56 @@ class PersonaWorkerService:
         window = self.memory_write_times.setdefault(room_id, deque())
         window.append(now_ms)
 
+    def _derive_target_persona_id(self, content: str) -> str | None:
+        enabled_personas = list(self.personas.keys())
+        if not enabled_personas:
+            self.stats.memory_writes_rejected += 1
+            self._record_memory_error("memory_write_rejected:no_enabled_personas")
+            return None
+
+        lowered = (content or "").lower()
+        for persona_id in enabled_personas:
+            persona_lower = persona_id.lower()
+            if f"@{persona_lower}" in lowered or persona_lower in lowered:
+                return persona_id
+
+        return enabled_personas[0]
+
+    def _build_scope(self, scope_policy: dict, room_id: str, persona_id: str, user_id: str | None) -> tuple[str, str]:
+        allowed_scopes = scope_policy.get("scopes") or []
+        scope = "persona_room"
+        if self.memory_scope_user_enabled and user_id and "persona_user" in allowed_scopes:
+            scope = "persona_user"
+        elif "persona_room" not in allowed_scopes and "persona" in allowed_scopes:
+            scope = "persona"
+
+        if scope == "persona_user":
+            return scope, f"{room_id}:{persona_id}:{user_id}"
+        if scope == "persona":
+            return scope, persona_id
+        return scope, f"{room_id}:{persona_id}"
+
     def _build_memory_context(self, persona_id: str, room_id: str, content: str) -> tuple[str, list[str]]:
         if not (self.memory_enabled and self.memory_store and self.memory_policy):
             return "None", []
 
         self.stats.memory_reads_attempted += 1
         try:
-            scope_room = f"persona_room:{room_id}:{persona_id}"
-            scope_persona = f"persona:{persona_id}"
-            results_room = self.memory_store.search(scope_room, content, limit=self.memory_max_items)
-            results_persona = self.memory_store.search(scope_persona, content, limit=self.memory_max_items)
-            combined = (results_room.items + results_persona.items)[: self.memory_max_items]
+            policy_scopes = self.memory_policy.get("scopes") if isinstance(self.memory_policy, dict) else []
+            scope_room, scope_room_key = self._build_scope(self.memory_policy or {}, room_id, persona_id, None)
+            scope_persona_key = persona_id if policy_scopes and "persona" in policy_scopes else None
+            scope_keys: list[str] = []
+            if scope_room_key:
+                scope_keys.append(scope_room_key)
+            if scope_persona_key and scope_persona_key not in scope_keys:
+                scope_keys.append(scope_persona_key)
+
+            results: list[MemoryItem] = []
+            for scope_key in scope_keys:
+                response = self.memory_store.search(scope_key, content, limit=self.memory_max_items)
+                results.extend(response.items)
+
+            combined = results[: self.memory_max_items]
 
             lines: list[str] = []
             ids: list[str] = []
@@ -239,6 +278,14 @@ class PersonaWorkerService:
             return False
 
         room_id = payload.get("room_id") or self.room_config.get("room_id", "room:demo")
+        persona_id = self._derive_target_persona_id(content)
+        if not persona_id:
+            return False
+        scope, scope_key = self._build_scope(self.memory_policy or {}, room_id, persona_id, payload.get("user_id"))
+        if not scope_key:
+            self.stats.memory_writes_rejected += 1
+            self._record_memory_error("memory_write_rejected:missing_scope_key")
+            return False
         raw_value = content.split(":", 1)[1] if ":" in content else content
         if raw_value.lower().startswith("remember"):
             raw_value = raw_value.split(None, 1)[1] if len(raw_value.split(None, 1)) > 1 else ""
@@ -259,8 +306,8 @@ class PersonaWorkerService:
             "schema_version": "1.0.0",
             "id": hashed,
             "ts": now_ts,
-            "scope": "persona_room",
-            "scope_key": "",
+            "scope": scope,
+            "scope_key": scope_key,
             "category": category,
             "subject": "room",
             "value": value_clean,
@@ -300,18 +347,13 @@ class PersonaWorkerService:
             self.stats.memory_writes_rejected += 1
             return False
 
-        for persona_id in self.personas:
-            scope_key = f"persona_room:{room_id}:{persona_id}"
-            per_persona = dict(candidate)
-            per_persona["scope_key"] = scope_key
-            per_persona["scope"] = "persona_room"
-            try:
-                memory_item = MemoryItem.from_dict(per_persona)
-                self.memory_store.upsert(scope_key, memory_item)
-            except Exception as exc:  # noqa: BLE001
-                self.stats.memory_writes_failed += 1
-                self._record_memory_error(str(exc))
-                return False
+        try:
+            memory_item = MemoryItem.from_dict(candidate)
+            self.memory_store.upsert(scope_key, memory_item)
+        except Exception as exc:  # noqa: BLE001
+            self.stats.memory_writes_failed += 1
+            self._record_memory_error(str(exc))
+            return False
 
         self.stats.memory_writes_accepted += 1
         self.stats.last_memory_write_ids.append(candidate["id"])
