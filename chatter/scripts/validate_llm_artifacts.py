@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
 from jsonschema import Draft202012Validator
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+
+from packages.llm_runtime.src.hash_utils import canonical_prompt_sha256  # noqa: E402
 
 
 def load_json(path: Path) -> Dict:
@@ -26,14 +31,6 @@ def validate_payload(label: str, payload: Dict, schema_path: Path) -> Tuple[bool
         return True, f"[OK] {label}: valid"
     except Exception as exc:  # noqa: BLE001
         return False, f"[FAIL] {label}: {exc}"
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(8192), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def validate_provider(repo_root: Path) -> bool:
@@ -70,7 +67,7 @@ def validate_prompt_manifest(repo_root: Path) -> bool:
             print(f"[FAIL] prompt missing: {prompt_path}")
             all_ok = False
             continue
-        digest = sha256_file(prompt_path)
+        digest = canonical_prompt_sha256(prompt_path)
         if digest != entry["sha256"]:
             print(
                 f"[FAIL] prompt sha mismatch for {prompt_path}: expected {entry['sha256']} got {digest}"
