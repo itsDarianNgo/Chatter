@@ -3,15 +3,14 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, Tuple
 
 import uvicorn
 from fastapi import FastAPI
 
 from .bus_redis_streams import ack, connect, ensure_consumer_group, read_messages
 from .config_loader import ConfigLoader
-from .generator_stub import generate_reply
-from .policy import should_speak
+from .generator import build_reply_generator
+from .policy import PolicyEngine, ts_ms_from_event
 from .publisher import publish_chat_message
 from .settings import settings
 from .state import RuntimeState, Stats
@@ -43,6 +42,17 @@ class PersonaWorkerService:
         self.base_path = base_path
         self.redis = None
         self._stop = asyncio.Event()
+        self.budget_limit = int(
+            self.room_config.get("timing", {}).get("max_bot_msgs_per_10s", settings.room_bot_budget_per_10s_default)
+        )
+        self.budget_window_ms = 10_000
+        self.policy_engine = PolicyEngine(self.room_config, self.personas, self.state)
+        self.reply_generator = build_reply_generator(
+            base_path,
+            settings.generation_mode,
+            settings.llm_provider_config_path,
+            settings.prompt_manifest_path,
+        )
 
     async def start(self) -> None:
         await self._connect()
@@ -104,26 +114,39 @@ class PersonaWorkerService:
             if not message_id:
                 return
 
+            ts_ms = ts_ms_from_event(payload)
+
             if self.state.seen_before(message_id):
                 self.stats.messages_deduped += 1
+                self.stats.record_decision(persona_id="*", reason="deduped", tags={"ts_ms": ts_ms})
                 return
+
+            self.state.record_event(room_id, ts_ms, payload.get("origin", ""), self.budget_limit, self.budget_window_ms)
 
             self.validator.validate(payload)
 
-            budget_limit = settings.room_bot_budget_per_10s_default
-            budget_window_ms = 10_000
-            self.state.add_recent_message(room_id, payload, budget_limit, budget_window_ms)
+            self.state.add_recent_message(room_id, payload, self.budget_limit, self.budget_window_ms)
 
             for persona_id, persona in self.personas.items():
-                decision, reason = self._evaluate_persona(room_id, persona_id, payload, budget_limit, budget_window_ms)
+                decision, reason, tags = self.policy_engine.should_speak(persona_id, payload)
+                tags = tags or {}
+                tags["reason"] = reason
                 self.stats.last_decision_reasons[persona_id] = reason
+                self.stats.record_decision(persona_id=persona_id, reason=reason, tags=tags)
                 if not decision:
+                    if reason == "cooldown":
+                        self.stats.messages_suppressed_cooldown += 1
+                    elif reason == "budget":
+                        self.stats.messages_suppressed_budget += 1
+                    elif reason == "bot_origin":
+                        self.stats.messages_suppressed_bot_origin += 1
                     continue
-                content = generate_reply(
+                content = self.reply_generator.generate_reply(
                     persona,
-                    room_id,
+                    self.room_config,
                     payload,
-                    persona.get("safety", {}).get("max_chars", 200),
+                    self.state,
+                    tags,
                 )
                 published = await publish_chat_message(
                     self.redis,
@@ -139,7 +162,7 @@ class PersonaWorkerService:
                     persona_stats = self.state.get_persona_stats(persona_id)
                     persona_stats.last_spoke_at_ms = now_ms
                     persona_stats.messages_published += 1
-                    self.state.record_publish(room_id, now_ms, budget_limit, budget_window_ms)
+                    self.state.record_publish(room_id, now_ms, self.budget_limit, self.budget_window_ms)
                     self.stats.messages_published += 1
                 else:
                     logger.warning("Failed to publish for persona %s", persona_id)
@@ -147,28 +170,6 @@ class PersonaWorkerService:
             logger.warning("Error processing message %s: %s", redis_id, exc)
         finally:
             await ack(self.redis, settings.firehose_stream, settings.consumer_group, redis_id)
-
-    def _evaluate_persona(
-        self, room_id: str, persona_id: str, payload: Dict[str, Any], budget_limit: int, budget_window_ms: int
-    ) -> Tuple[bool, str]:
-        cooldown_ms = int(self.room_config.get("timing", {}).get("soft_cooldown_ms", settings.persona_cooldown_ms_default))
-        decision, reason = should_speak(
-            room_id,
-            persona_id,
-            payload,
-            self.state,
-            max_react_age_s=settings.max_react_age_s,
-            persona_cooldown_ms=cooldown_ms,
-            budget_limit=budget_limit,
-            budget_window_ms=budget_window_ms,
-        )
-        if reason == "cooldown":
-            self.stats.messages_suppressed_cooldown += 1
-        elif reason == "budget":
-            self.stats.messages_suppressed_budget += 1
-        elif reason == "bot_origin":
-            self.stats.messages_suppressed_bot_origin += 1
-        return decision, reason
 
 
 service = PersonaWorkerService()
@@ -191,7 +192,24 @@ async def healthz() -> dict[str, str]:
 
 @app.get("/stats")
 async def stats() -> dict:
-    return service.stats.as_dict(list(service.personas.keys()), service.room_config.get("room_id", "room:demo"))
+    stats_payload = service.stats.as_dict(
+        list(service.personas.keys()), service.room_config.get("room_id", "room:demo")
+    )
+    describe_fn = getattr(service.reply_generator, "describe", None)
+    if callable(describe_fn):
+        try:
+            stats_payload.update(describe_fn())
+        except Exception:  # noqa: BLE001
+            stats_payload.update(
+                {
+                    "generation_mode": settings.generation_mode,
+                    "llm_provider": None,
+                    "llm_model": None,
+                    "prompt_manifest_path": None,
+                    "provider_config_path": None,
+                }
+            )
+    return stats_payload
 
 
 if __name__ == "__main__":

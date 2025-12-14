@@ -1,0 +1,19 @@
+{
+  "schema_name": "MemoryItem",
+  "schema_version": "1.0.0",
+  "id": "bad_confidence",
+  "ts": "2024-05-04T12:00:00Z",
+  "scope": "persona",
+  "scope_key": "persona:ClipGoblin",
+  "category": "relationship",
+  "subject": "confidence too high",
+  "value": "confidence exceeds 1",
+  "confidence": 1.5,
+  "ttl_days": 30,
+  "source": {
+    "kind": "system_seed",
+    "message_id": null,
+    "user_id": null,
+    "origin": "system"
+  }
+}

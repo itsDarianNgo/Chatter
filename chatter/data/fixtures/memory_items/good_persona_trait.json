@@ -1,0 +1,22 @@
+{
+  "schema_name": "MemoryItem",
+  "schema_version": "1.0.0",
+  "id": "mem_trait_001",
+  "ts": "2024-05-01T12:00:00Z",
+  "scope": "persona",
+  "scope_key": "persona:ClipGoblin",
+  "category": "persona_trait",
+  "subject": "clip goblin vibe",
+  "value": "loves clipping hype plays and bragging about highlight reels",
+  "confidence": 0.92,
+  "ttl_days": 90,
+  "source": {
+    "kind": "system_seed",
+    "message_id": null,
+    "user_id": null,
+    "origin": "system"
+  },
+  "tags": {
+    "seed": true
+  }
+}

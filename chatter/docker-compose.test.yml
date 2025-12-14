@@ -1,0 +1,6 @@
+services:
+  persona_workers:
+    environment:
+      GENERATION_MODE: stub
+      LLM_PROVIDER_CONFIG_PATH: configs/llm/providers/stub.json
+      PROMPT_MANIFEST_PATH: prompts/manifest.json

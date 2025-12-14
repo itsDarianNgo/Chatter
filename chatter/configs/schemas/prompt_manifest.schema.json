@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Prompt Manifest",
+  "type": "object",
+  "properties": {
+    "schema_name": { "const": "PromptManifest" },
+    "schema_version": { "const": "1.0.0" },
+    "prompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "purpose": { "enum": ["persona_reply", "memory_extract", "memory_summarize"] },
+          "version": { "type": "string" },
+          "path": { "type": "string" },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "input_vars": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "output_contract": {
+            "type": "object",
+            "properties": {
+              "type": { "enum": ["text", "json"] },
+              "notes": { "type": "string" }
+            },
+            "required": ["type"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "purpose", "version", "path", "sha256", "input_vars", "output_contract"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": ["schema_name", "schema_version", "prompts"],
+  "additionalProperties": false
+}
