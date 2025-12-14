@@ -12,10 +12,20 @@
     "validate:prompt-outputs:node": "node scripts/ops/validate_prompt_outputs.mjs",
     "validate:prompt-outputs:python": "python scripts/ops/validate_prompt_outputs.py",
     "validate:prompt-outputs": "npm run validate:prompt-outputs:node && npm run validate:prompt-outputs:python",
-    "validate:artifacts": "npm run validate:protocol && npm run validate:configs && npm run validate:prompt-outputs",
+    "validate:llm": "python scripts/validate_llm_artifacts.py",
+    "validate:artifacts": "npm run validate:protocol && npm run validate:configs && npm run validate:prompt-outputs && npm run validate:llm",
     "dev:demo": "docker compose up --build",
     "demo:publisher": "python apps/tools/stub_publisher/publish.py --rate 10",
-    "test:e2e": "bash scripts/integration/e2e_firehose_ws_test.sh"
+    "compose:up": "docker compose up -d --build",
+    "compose:down": "docker compose down -v",
+    "test:e2e": "bash scripts/integration/e2e_firehose_ws_test.sh",
+    "test:e2e:botloop": "bash scripts/integration/e2e_botloop_test.sh",
+    "test:e2e:botloop:ps": "powershell -ExecutionPolicy Bypass -File scripts\\integration\\e2e_botloop_test.ps1",
+    "test:e2e:policy": "bash scripts/integration/e2e_policy_probe_test.sh",
+    "test:e2e:policy:ps": "powershell -ExecutionPolicy Bypass -File scripts\\integration\\e2e_policy_probe_test.ps1",
+    "test:e2e:all": "npm run test:e2e && npm run test:e2e:botloop && npm run test:e2e:policy",
+    "compose:test:e2e": "bash scripts/integration/compose_test_e2e.sh",
+    "test:llm:smoke": "python scripts/integration/litellm_smoke.py"
   },
   "dependencies": {
     "ajv": "^8.17.1",
