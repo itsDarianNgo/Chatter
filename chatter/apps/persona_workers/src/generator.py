@@ -100,9 +100,12 @@ class LLMReplyGenerator:
         self.provider_config_path = base_path / provider_config_path
         self.prompt_manifest_path = base_path / prompt_manifest_path
         self.provider_config = load_llm_provider_config(self.provider_config_path)
+        try:
+            self.max_output_chars = int(self.provider_config.get("max_output_chars", 220))
+        except Exception:  # noqa: BLE001
+            self.max_output_chars = 220
         self.provider = self._build_provider()
         self.renderer = PromptRenderer(self.prompt_manifest_path, base_dir=base_path)
-        self.max_output_chars = int(self.provider_config.get("max_output_chars", 200))
 
     def _build_provider(self):
         provider_type = self.provider_config.get("provider")

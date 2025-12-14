@@ -92,6 +92,34 @@ def validate_stub_fixtures(repo_root: Path) -> bool:
     return ok
 
 
+def validate_llm_generator_init(repo_root: Path) -> bool:
+    try:
+        from apps.persona_workers.src.generator import LLMReplyGenerator
+    except Exception as exc:  # noqa: BLE001
+        print(f"[FAIL] import LLMReplyGenerator: {exc}")
+        return False
+
+    try:
+        generator = LLMReplyGenerator(
+            base_path=repo_root,
+            provider_config_path="configs/llm/providers/stub.json",
+            prompt_manifest_path="prompts/manifest.json",
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"[FAIL] LLMReplyGenerator init: {exc}")
+        return False
+
+    if not isinstance(getattr(generator, "max_output_chars", None), int):
+        print("[FAIL] LLMReplyGenerator max_output_chars missing or not int")
+        return False
+    if generator.max_output_chars <= 0:
+        print("[FAIL] LLMReplyGenerator max_output_chars not positive")
+        return False
+
+    print("[OK] LLMReplyGenerator init and max_output_chars present")
+    return True
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate LLM artifacts for Milestone 3A")
     _ = parser.parse_args(list(argv) if argv is not None else None)
@@ -103,6 +131,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         validate_memory_policy(repo_root),
         validate_prompt_manifest(repo_root),
         validate_stub_fixtures(repo_root),
+        validate_llm_generator_init(repo_root),
     ]
 
     failed = [idx for idx, ok in enumerate(checks) if not ok]
