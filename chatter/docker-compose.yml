@@ -8,6 +8,8 @@ services:
     build:
       context: .
       dockerfile: apps/chat_gateway/Dockerfile
+    env_file:
+      - .env.example
     environment:
       REDIS_URL: redis://redis:6379/0
       INGEST_STREAM: stream:chat.ingest
@@ -25,6 +27,8 @@ services:
     build:
       context: .
       dockerfile: apps/persona_workers/Dockerfile
+    env_file:
+      - .env.example
     environment:
       REDIS_URL: redis://redis:6379/0
       FIREHOSE_STREAM: stream:chat.firehose

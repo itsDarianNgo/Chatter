@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1
 
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir fastapi uvicorn[standard] redis jsonschema
+    && pip install --no-cache-dir fastapi uvicorn[standard] redis jsonschema python-dotenv
 
 COPY apps/chat_gateway ./apps/chat_gateway
 COPY packages ./packages

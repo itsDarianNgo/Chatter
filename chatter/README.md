@@ -38,6 +38,7 @@
   - `npm run test:e2e:all`
   - `npm run compose:down`
 - Windows users should run the bash scripts via Git Bash or WSL; a PowerShell helper is available at `scripts/integration/compose_test_e2e.ps1`.
+- For local overrides, copy `.env.example` to `.env` (do not commit it) and adjust values such as `OPENAI_API_KEY` if you plan to run the LiteLLM smoke test.
 
 ## Core event channels (conceptual)
 - `stream.context` — rolling “what’s happening on stream”

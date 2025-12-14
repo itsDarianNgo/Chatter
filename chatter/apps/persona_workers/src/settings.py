@@ -1,11 +1,29 @@
 import os
 import socket
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
+
+try:  # Optional for local dev; containers already supply env
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - dependency managed via pyproject
+    load_dotenv = None
+
+
+def _load_dotenv_if_present() -> None:
+    if load_dotenv is None:
+        return
+    project_root = Path(__file__).resolve().parents[3]
+    env_path = project_root / ".env"
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
 
 
 def _env(name: str, default: Optional[str] = None) -> Optional[str]:
     return os.environ.get(name, default)
+
+
+_load_dotenv_if_present()
 
 
 @dataclass
