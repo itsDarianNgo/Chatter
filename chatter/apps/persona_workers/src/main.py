@@ -306,7 +306,7 @@ class PersonaWorkerService:
             per_persona["scope_key"] = scope_key
             per_persona["scope"] = "persona_room"
             try:
-                memory_item = MemoryItem(**per_persona)
+                memory_item = MemoryItem.from_dict(per_persona)
                 self.memory_store.upsert(scope_key, memory_item)
             except Exception as exc:  # noqa: BLE001
                 self.stats.memory_writes_failed += 1
@@ -358,7 +358,7 @@ class PersonaWorkerService:
                 if not scope_key:
                     continue
                 try:
-                    memory_item = MemoryItem(**candidate)
+                    memory_item = MemoryItem.from_dict(candidate)
                     self.memory_store.upsert(scope_key, memory_item)
                     any_accepted = True
                     self.stats.memory_writes_accepted += 1

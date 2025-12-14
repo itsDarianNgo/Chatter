@@ -39,6 +39,44 @@ else:
 PY
 }
 
+extract_bool() {
+  local stats="$1" key="$2"
+  python - "$key" <<<"${stats}" <<'PY'
+import json,sys
+key=sys.argv[1]
+try:
+    data=json.load(sys.stdin)
+except Exception:
+    print("")
+    sys.exit(0)
+val=data.get(key)
+if isinstance(val,bool):
+    print("true" if val else "false")
+elif isinstance(val,str) and val.lower() in ("true","false"):
+    print(val.lower())
+else:
+    print("")
+PY
+}
+
+extract_string() {
+  local stats="$1" key="$2"
+  python - "$key" <<<"${stats}" <<'PY'
+import json,sys
+key=sys.argv[1]
+try:
+    data=json.load(sys.stdin)
+except Exception:
+    print("")
+    sys.exit(0)
+val=data.get(key)
+if isinstance(val,str):
+    print(val)
+else:
+    print("")
+PY
+}
+
 require_counter() {
   local stats="$1" key="$2" label="$3"
   local val
@@ -69,6 +107,12 @@ if ! curl -sf "${PERSONA_HTTP}/healthz" >/dev/null; then
 fi
 
 BASE_STATS=$(fetch_stats)
+MEMORY_ENABLED=$(extract_bool "${BASE_STATS}" "memory_enabled")
+if [ "${MEMORY_ENABLED}" != "true" ]; then
+  LAST_ERR=$(extract_string "${BASE_STATS}" "last_memory_error")
+  echo "FAIL: memory is disabled; last_memory_error=${LAST_ERR}" >&2
+  exit 1
+fi
 BASE_WRITES=$(require_counter "${BASE_STATS}" "memory_writes_accepted" "memory_writes_accepted")
 BASE_READS=$(require_counter "${BASE_STATS}" "memory_reads_succeeded" "memory_reads_succeeded")
 BASE_ITEMS=$(require_counter "${BASE_STATS}" "memory_items_total" "memory_items_total")

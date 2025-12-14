@@ -73,7 +73,7 @@ class StubMemoryStore(MemoryStore):
         for persona_id, items in personas.items():
             for raw in items:
                 validate_memory_item_dict(raw)
-                item = MemoryItem(**raw)
+                item = MemoryItem.from_dict(raw)
                 self._store.setdefault(persona_id, []).append(item)
 
     def search(self, scope_key: str, query: str, limit: int = 5) -> MemoryQueryResult:

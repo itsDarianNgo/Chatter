@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any, Dict, List, Protocol
 
 
@@ -20,6 +20,14 @@ class MemoryItem:
     redactions: List[str] | None = field(default_factory=list)
     expires_at: str | None = None
     version: int | None = None
+    schema_name: str | None = None
+    schema_version: str | None = None
+
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "MemoryItem":
+        allowed = {field.name for field in fields(cls)}
+        filtered = {key: value for key, value in payload.items() if key in allowed}
+        return cls(**filtered)
 
 
 @dataclass
