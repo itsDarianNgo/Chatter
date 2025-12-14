@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir fastapi uvicorn[standard] redis jsonschema litell
 COPY apps/persona_workers ./apps/persona_workers
 COPY packages ./packages
 COPY configs ./configs
+COPY data ./data
 COPY pyproject.toml ./
 
 EXPOSE 8090

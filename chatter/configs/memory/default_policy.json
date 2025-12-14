@@ -1,10 +1,18 @@
 {
   "schema_name": "MemoryPolicy",
   "schema_version": "1.0.0",
-  "enabled": false,
+  "enabled": true,
   "scopes": ["persona", "persona_room"],
   "ttl_days_default": 30,
-  "allow_categories": ["chat_summary", "highlight"],
+  "allow_categories": [
+    "chat_summary",
+    "highlight",
+    "room_lore",
+    "running_joke",
+    "persona_trait",
+    "preference",
+    "relationship"
+  ],
   "deny_categories": ["pii", "secrets"],
   "redaction": {
     "enabled": true,

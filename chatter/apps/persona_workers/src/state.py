@@ -137,6 +137,23 @@ class Stats:
     last_decision_reasons: Dict[str, str] = field(default_factory=dict)
     decisions_by_reason: Dict[str, int] = field(default_factory=dict)
     last_decisions: Deque[dict] = field(default_factory=lambda: deque(maxlen=20))
+    memory_enabled: bool = False
+    memory_backend: str | None = None
+    memory_policy_path: str | None = None
+    memory_fixtures_path: str | None = None
+    memory_items_total: int = 0
+    memory_items_by_scope: Dict[str, int] = field(default_factory=dict)
+    memory_reads_attempted: int = 0
+    memory_reads_succeeded: int = 0
+    memory_reads_failed: int = 0
+    memory_writes_attempted: int = 0
+    memory_writes_accepted: int = 0
+    memory_writes_rejected: int = 0
+    memory_writes_redacted: int = 0
+    memory_writes_failed: int = 0
+    last_memory_read_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=10))
+    last_memory_write_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=10))
+    last_memory_error: str | None = None
 
     def record_decision(self, persona_id: str, reason: str, tags: Optional[dict] = None) -> None:
         tags = tags or {}
@@ -167,4 +184,21 @@ class Stats:
             "recent_decisions": list(self.last_decisions),
             "enabled_personas": enabled_personas,
             "room_id": room_id,
+            "memory_enabled": self.memory_enabled,
+            "memory_backend": self.memory_backend,
+            "memory_policy_path": self.memory_policy_path,
+            "memory_fixtures_path": self.memory_fixtures_path,
+            "memory_items_total": self.memory_items_total,
+            "memory_items_by_scope": self.memory_items_by_scope,
+            "memory_reads_attempted": self.memory_reads_attempted,
+            "memory_reads_succeeded": self.memory_reads_succeeded,
+            "memory_reads_failed": self.memory_reads_failed,
+            "memory_writes_attempted": self.memory_writes_attempted,
+            "memory_writes_accepted": self.memory_writes_accepted,
+            "memory_writes_rejected": self.memory_writes_rejected,
+            "memory_writes_redacted": self.memory_writes_redacted,
+            "memory_writes_failed": self.memory_writes_failed,
+            "last_memory_read_ids": list(self.last_memory_read_ids),
+            "last_memory_write_ids": list(self.last_memory_write_ids),
+            "last_memory_error": self.last_memory_error,
         }

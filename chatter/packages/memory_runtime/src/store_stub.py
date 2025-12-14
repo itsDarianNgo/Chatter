@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -42,14 +43,20 @@ def _parse_ts(ts: str) -> datetime:
 
 
 def _score_item(item: MemoryItem, query: str) -> Tuple[int, datetime, str]:
-    q = query.lower().strip()
+    tokens = [tok for tok in re.split(r"\W+", query.lower().strip()) if tok]
+    if not tokens:
+        tokens = []
     score = 0
-    if q in item.subject.lower():
-        score += 3
-    if q in item.value.lower():
-        score += 2
-    if q in item.category.lower():
-        score += 1
+    subject_l = item.subject.lower()
+    value_l = item.value.lower()
+    category_l = item.category.lower()
+    for tok in tokens or [""]:
+        if tok and tok in subject_l:
+            score += 3
+        if tok and tok in value_l:
+            score += 2
+        if tok and tok in category_l:
+            score += 1
     return score, _parse_ts(item.ts), item.id
 
 

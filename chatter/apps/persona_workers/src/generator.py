@@ -68,7 +68,9 @@ class DeterministicReplyGenerator:
             "provider_config_path": None,
         }
 
-    def generate_reply(self, persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict) -> str:
+    def generate_reply(
+        self, persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict, memory_context: str | None = None
+    ) -> str:
         persona_id = persona_cfg.get("persona_id", "persona")
         content = event_msg.get("content", "") or ""
         max_chars = persona_cfg.get("safety", {}).get("max_chars", 200)
@@ -160,7 +162,9 @@ class LLMReplyGenerator:
         room_state = state.get_room_state(room_id, budget_limit, budget_window_ms)
         return [msg.get("content", "") or "" for msg in room_state.recent_messages]
 
-    def generate_reply(self, persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict) -> str:
+    def generate_reply(
+        self, persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict, memory_context: str | None = None
+    ) -> str:
         persona_id = persona_cfg.get("persona_id", "persona")
         display_name = persona_cfg.get("display_name", persona_id)
         content = event_msg.get("content", "") or ""
@@ -180,6 +184,7 @@ class LLMReplyGenerator:
             marker=marker,
             recent_messages=recent,
             tags=tags or {},
+            memory_context=memory_context or "",
         )
         system_prompt, user_prompt = self.renderer.render_persona_reply(llm_req)
         llm_req.system_prompt = system_prompt
@@ -194,6 +199,9 @@ class LLMReplyGenerator:
             reply = "ok"
         return reply
 
+    def render_memory_extract_prompts(self, req: LLMRequest):
+        return self.renderer.render_memory_extract(req)
+
 
 def build_reply_generator(base_path: Path, mode: str, provider_config_path: str, prompt_manifest_path: str):
     normalized = (mode or "deterministic").lower()
@@ -205,5 +213,7 @@ def build_reply_generator(base_path: Path, mode: str, provider_config_path: str,
 _default_generator = DeterministicReplyGenerator()
 
 
-def generate_reply(persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict) -> str:
-    return _default_generator.generate_reply(persona_cfg, room_cfg, event_msg, state, tags)
+def generate_reply(
+    persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict, memory_context: str | None = None
+) -> str:
+    return _default_generator.generate_reply(persona_cfg, room_cfg, event_msg, state, tags, memory_context)

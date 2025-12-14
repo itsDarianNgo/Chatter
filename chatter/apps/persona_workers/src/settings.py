@@ -47,6 +47,15 @@ class Settings:
     http_port: int = int(_env("HTTP_PORT", "8090"))
     log_level: str = _env("LOG_LEVEL", "INFO")
 
+    memory_enabled: bool = _env("MEMORY_ENABLED", "false").lower() == "true"
+    memory_backend: str = _env("MEMORY_BACKEND", "stub")
+    memory_policy_path: str = _env("MEMORY_POLICY_PATH", "configs/memory/default_policy.json")
+    memory_fixtures_path: str = _env("MEMORY_FIXTURES_PATH", "data/memory_stub/fixtures/demo.json")
+    memory_max_items: int = int(_env("MEMORY_MAX_ITEMS", "5"))
+    memory_max_chars: int = int(_env("MEMORY_MAX_CHARS", "800"))
+    memory_extract_strategy: str = _env("MEMORY_EXTRACT_STRATEGY", "heuristic")
+    memory_scope_user_enabled: bool = _env("MEMORY_SCOPE_USER_ENABLED", "false").lower() == "true"
+
     max_recent_messages_per_room: int = int(_env("MAX_RECENT_MESSAGES_PER_ROOM", "50"))
     dedupe_cache_size: int = int(_env("DEDUPE_CACHE_SIZE", "1000"))
     max_react_age_s: float = float(_env("MAX_REACT_AGE_S", "20"))

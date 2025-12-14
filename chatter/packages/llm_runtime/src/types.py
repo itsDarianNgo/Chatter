@@ -13,6 +13,7 @@ class LLMRequest:
     marker: Optional[str] = None
     recent_messages: List[str] = field(default_factory=list)
     tags: Dict[str, object] = field(default_factory=dict)
+    memory_context: str = ""
     system_prompt: str = ""
     user_prompt: str = ""
 
