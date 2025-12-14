@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LLM Stub Fixtures",
+  "type": "object",
+  "properties": {
+    "schema_name": { "const": "LLMStubFixtures" },
+    "schema_version": { "const": "1.0.0" },
+    "strategy": { "enum": ["persona_marker", "marker_only"] },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string" },
+          "response": { "type": "string" },
+          "tags": { "type": "object" },
+          "notes": { "type": "string" }
+        },
+        "required": ["key", "response"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": ["schema_name", "schema_version", "strategy", "cases"],
+  "additionalProperties": false
+}
