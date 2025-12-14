@@ -1,11 +1,29 @@
 import os
 import socket
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
+
+try:  # Optional for local dev; containers already supply env
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - dependency managed via pyproject
+    load_dotenv = None
+
+
+def _load_dotenv_if_present() -> None:
+    if load_dotenv is None:
+        return
+    project_root = Path(__file__).resolve().parents[3]
+    env_path = project_root / ".env"
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
 
 
 def _env(name: str, default: Optional[str] = None) -> Optional[str]:
     return os.environ.get(name, default)
+
+
+_load_dotenv_if_present()
 
 
 @dataclass
@@ -18,6 +36,9 @@ class Settings:
     room_config_path: str = _env("ROOM_CONFIG_PATH", "configs/rooms/demo.json")
     persona_config_dir: str = _env("PERSONA_CONFIG_DIR", "configs/personas")
     moderation_config_path: str = _env("MODERATION_CONFIG_PATH", "configs/moderation/default.json")
+    generation_mode: str = _env("GENERATION_MODE", "deterministic")
+    llm_provider_config_path: str = _env("LLM_PROVIDER_CONFIG_PATH", "configs/llm/providers/stub.json")
+    prompt_manifest_path: str = _env("PROMPT_MANIFEST_PATH", "prompts/manifest.json")
     schema_chat_message_path: str = _env(
         "SCHEMA_CHAT_MESSAGE_PATH", "packages/protocol/jsonschema/chat_message.schema.json"
     )
