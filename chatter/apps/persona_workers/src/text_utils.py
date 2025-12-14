@@ -1,6 +1,9 @@
 import re
 from typing import Iterable
 
+import re
+from typing import Iterable
+
 HYPE_TOKENS = {"POG", "POGGERS", "OMEGALUL", "LUL", "KEKW", "W", "HYPE"}
 
 

@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from .bus_redis_streams import ack, connect, ensure_consumer_group, read_messages
 from .config_loader import ConfigLoader
-from .generator_stub import generate_reply
+from .generator import build_reply_generator
 from .policy import PolicyEngine, ts_ms_from_event
 from .publisher import publish_chat_message
 from .settings import settings
@@ -47,6 +47,12 @@ class PersonaWorkerService:
         )
         self.budget_window_ms = 10_000
         self.policy_engine = PolicyEngine(self.room_config, self.personas, self.state)
+        self.reply_generator = build_reply_generator(
+            base_path,
+            settings.generation_mode,
+            settings.llm_provider_config_path,
+            settings.prompt_manifest_path,
+        )
 
     async def start(self) -> None:
         await self._connect()
@@ -135,7 +141,7 @@ class PersonaWorkerService:
                     elif reason == "bot_origin":
                         self.stats.messages_suppressed_bot_origin += 1
                     continue
-                content = generate_reply(
+                content = self.reply_generator.generate_reply(
                     persona,
                     self.room_config,
                     payload,

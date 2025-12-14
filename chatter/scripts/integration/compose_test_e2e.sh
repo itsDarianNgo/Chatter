@@ -5,12 +5,12 @@ command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 2; }
 command -v npm >/dev/null 2>&1 || { echo "npm is required" >&2; exit 2; }
 
 cleanup() {
-  docker compose down -v || true
+  docker compose -f docker-compose.yml -f docker-compose.test.yml down -v || true
 }
 trap cleanup EXIT
 
 echo "Bringing up compose stack..."
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build
 
 echo "Waiting for gateway and persona_workers health..."
 bash scripts/integration/wait_for_services.sh

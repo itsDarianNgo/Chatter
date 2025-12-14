@@ -5,8 +5,8 @@
   "properties": {
     "schema_name": { "const": "LLMProviderConfig" },
     "schema_version": { "const": "1.0.0" },
-    "provider": { "enum": ["stub"] },
-    "mode": { "enum": ["deterministic_stub"] },
+    "provider": { "enum": ["stub", "litellm"] },
+    "mode": { "enum": ["deterministic_stub", "litellm_live"] },
     "timeout_ms": {
       "type": "integer",
       "minimum": 1000,
@@ -27,6 +27,21 @@
       "required": ["fixtures_path", "default_response", "key_strategy"],
       "additionalProperties": false
     },
+    "litellm": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "api_base": { "type": "string" },
+        "api_key_env": { "type": "string" },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "max_tokens": { "type": "integer", "minimum": 1, "maximum": 512 },
+        "timeout_s": { "type": "number", "minimum": 1, "maximum": 120 },
+        "num_retries": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "extra": { "type": "object" }
+      },
+      "required": ["model"],
+      "additionalProperties": false
+    },
     "metadata": { "type": "object" }
   },
   "required": [
@@ -35,8 +50,17 @@
     "provider",
     "mode",
     "timeout_ms",
-    "max_output_chars",
-    "stub"
+    "max_output_chars"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "provider": { "const": "stub" } } },
+      "then": { "required": ["stub"] }
+    },
+    {
+      "if": { "properties": { "provider": { "const": "litellm" } } },
+      "then": { "required": ["litellm"] }
+    }
   ],
   "additionalProperties": false
 }

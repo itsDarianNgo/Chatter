@@ -1,0 +1,21 @@
+{
+  "schema_name": "LLMProviderConfig",
+  "schema_version": "1.0.0",
+  "provider": "litellm",
+  "mode": "litellm_live",
+  "timeout_ms": 30000,
+  "max_output_chars": 200,
+  "litellm": {
+    "model": "gpt-4o-mini",
+    "api_base": "",
+    "api_key_env": "OPENAI_API_KEY",
+    "temperature": 0.3,
+    "max_tokens": 120,
+    "timeout_s": 30,
+    "num_retries": 1,
+    "extra": {}
+  },
+  "metadata": {
+    "notes": "Example LiteLLM provider config; supply OPENAI_API_KEY in environment to use."
+  }
+}

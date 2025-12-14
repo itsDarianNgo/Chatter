@@ -31,6 +31,7 @@
 ## Milestone 2 E2E
 - persona_workers now runs in docker compose and exposes `http://localhost:8090/healthz` for stats and health.
 - One-command local test sweep: `npm run compose:test:e2e` (brings up compose, waits for services, runs all E2E tests, then tears down).
+- The compose E2E path layers `docker-compose.test.yml` on top of the base stack to pin persona_workers to the stub LLM provider for deterministic runs.
 - Alternatively:
   - `npm run compose:up` (or `docker compose up --build`)
   - `bash scripts/integration/wait_for_services.sh`

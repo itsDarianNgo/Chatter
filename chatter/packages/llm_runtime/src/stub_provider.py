@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import json
 import re
 from pathlib import Path
 from typing import Dict
@@ -17,6 +18,7 @@ def _load_fixtures(path: Path) -> Dict[str, str]:
 
 def _clean_text(text: str, max_chars: int) -> str:
     single_line = re.sub(r"\s+", " ", text.replace("\n", " ").replace("\r", " ")).strip()
+    single_line = single_line.replace("@", "")
     if len(single_line) > max_chars:
         return single_line[: max_chars - 1] + "…"
     return single_line

@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install minimal runtime dependencies
-RUN pip install --no-cache-dir fastapi uvicorn[standard] redis jsonschema
+RUN pip install --no-cache-dir fastapi uvicorn[standard] redis jsonschema litellm
 
 # Copy required application files
 COPY apps/persona_workers ./apps/persona_workers

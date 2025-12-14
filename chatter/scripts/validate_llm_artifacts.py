@@ -34,12 +34,19 @@ def validate_payload(label: str, payload: Dict, schema_path: Path) -> Tuple[bool
 
 
 def validate_provider(repo_root: Path) -> bool:
-    config_path = repo_root / "configs/llm/providers/stub.json"
     schema_path = repo_root / "configs/schemas/llm_provider.schema.json"
-    payload = load_json(config_path)
-    ok, msg = validate_payload("llm provider", payload, schema_path)
-    print(msg)
-    return ok
+    provider_paths = [
+        ("llm provider (stub)", repo_root / "configs/llm/providers/stub.json"),
+        ("llm provider (litellm example)", repo_root / "configs/llm/providers/litellm.example.json"),
+    ]
+
+    all_ok = True
+    for label, config_path in provider_paths:
+        payload = load_json(config_path)
+        ok, msg = validate_payload(label, payload, schema_path)
+        print(msg)
+        all_ok = all_ok and ok
+    return all_ok
 
 
 def validate_memory_policy(repo_root: Path) -> bool:
