@@ -196,9 +196,10 @@ while (( SECONDS - start < CONNECT_TIMEOUT_S )); do
   sleep 0.2
 done
 
-# Order: bot-origin suppression, forced marker (to ensure recent publish), cooldown pair, mention/hype, final forced marker
+# Order: bot-origin suppression, forced marker (to ensure recent publish), cooldown pair immediately after, mention/hype, final forced marker
 publish_message "policy_bot_origin_${TEST_ID}" "bot" "${MARKER} BOT_ORIGIN" "user_bot" "bot_account"
 publish_message "policy_e2e_prime_${TEST_ID}" "human" "${MARKER} E2E_TEST_POLICY_TRIGGER" "user_prime" "prime_viewer"
+sleep 0.2
 publish_message "policy_cd_1_${TEST_ID}" "human" "${MARKER} COOLDOWN" "user_cd" "cooldown_viewer"
 publish_message "policy_cd_2_${TEST_ID}" "human" "${MARKER} COOLDOWN" "user_cd2" "cooldown_viewer2"
 publish_message "policy_mention_${TEST_ID}" "human" "@${PERSONA_NAME} POGGERS KEKW ${MARKER} MENTION_HYPE" "user_mh" "mentioner"

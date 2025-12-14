@@ -69,21 +69,7 @@ class PolicyEngine:
             return False, "wrong_room", tags
 
         content = event_msg.get("content", "") or ""
-        is_marker = any(token in content for token in ("E2E_TEST_", "E2E_TEST_BOTLOOP_", "E2E_MARKER_"))
         now_ms = int(time.time() * 1000)
-        if is_marker:
-            rate = self.state.get_room_rate_10s(
-                event_msg.get("room_id", self.room_id or "room:demo"), now_ms, self.max_bot_msgs_per_10s, self.bot_budget_window_ms
-            )
-            tags.update({
-                "p_used": 1.0,
-                "h_value": 0.0,
-                "reason": "e2e_forced",
-                "rate_10s": rate,
-                "forced": True,
-                "marker_present": True,
-            })
-            return True, "e2e_forced", tags
 
         persona_stats = self.state.get_persona_stats(persona_id)
         if persona_stats.last_spoke_at_ms is not None:
@@ -99,6 +85,21 @@ class PolicyEngine:
         )
         if not room_state.within_budget(now_ms):
             return False, "budget", tags
+
+        is_marker = any(token in content for token in ("E2E_TEST_", "E2E_TEST_BOTLOOP_", "E2E_MARKER_"))
+        if is_marker:
+            rate = self.state.get_room_rate_10s(
+                event_msg.get("room_id", self.room_id or "room:demo"), now_ms, self.max_bot_msgs_per_10s, self.bot_budget_window_ms
+            )
+            tags.update({
+                "p_used": 1.0,
+                "h_value": 0.0,
+                "reason": "e2e_forced",
+                "rate_10s": rate,
+                "forced": True,
+                "marker_present": True,
+            })
+            return True, "e2e_forced", tags
 
         display_name = self._persona_display_name(persona_id)
         mention_detected = detect_mentions(content, display_name)
