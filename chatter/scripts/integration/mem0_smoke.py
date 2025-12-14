@@ -31,6 +31,8 @@ def _normalize_base_url(base_url: str) -> str:
 
 
 def _request(method: str, url: str, headers: Dict[str, str], payload: Dict[str, Any] | None, timeout: int) -> Dict[str, Any]:
+    if payload is None and method.upper() in {"POST", "PUT", "PATCH"}:
+        payload = {}
     data = json.dumps(payload or {}).encode("utf-8") if payload is not None else None
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
@@ -41,7 +43,7 @@ def _request(method: str, url: str, headers: Dict[str, str], payload: Dict[str, 
             return json.loads(body.decode("utf-8"))
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8") if hasattr(exc, "read") else str(exc)
-        raise RuntimeError(f"HTTP {exc.code} {exc.reason} for {url}: {body}") from exc
+        raise RuntimeError(f"HTTP {exc.code} {exc.reason} for {method} {url}: {body}") from exc
 
 
 def main() -> int:
@@ -88,8 +90,8 @@ def main() -> int:
 
     created_id: str | None = None
     try:
-        add_url = f"{base_url}/v1/memories/"
-        print(f"ADD URL: {add_url}")
+        add_url = f"{base_url}/v1/memories"
+        print(f"ADD URL: {add_url} METHOD: POST")
         add_resp = _request("POST", add_url, headers, add_payload, timeout)
         created_id = add_resp.get("id") or add_resp.get("memory_id")
     except Exception as exc:  # noqa: BLE001
@@ -98,7 +100,7 @@ def main() -> int:
 
     try:
         search_url = f"{base_url}/v2/memories/search"
-        print(f"SEARCH URL: {search_url}")
+        print(f"SEARCH URL: {search_url} METHOD: POST")
         search_resp = _request("POST", search_url, headers, search_payload, timeout)
         results = _extract_results(search_resp)
         found = False
@@ -119,7 +121,7 @@ def main() -> int:
         if created_id:
             try:
                 delete_url = f"{base_url}/v1/memories/{created_id}"
-                print(f"DELETE URL: {delete_url}")
+                print(f"DELETE URL: {delete_url} METHOD: DELETE")
                 _request("DELETE", delete_url, headers, None, timeout)
             except Exception:
                 pass

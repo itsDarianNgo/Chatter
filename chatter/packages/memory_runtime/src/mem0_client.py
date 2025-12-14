@@ -29,7 +29,7 @@ class Mem0Client:
     ) -> None:
         self.api_key = api_key
         self.base_url = _normalize_base_url(base_url)
-        self.add_url = f"{self.base_url}/v1/memories/"
+        self.add_url = f"{self.base_url}/v1/memories"
         self.search_url = f"{self.base_url}/v2/memories/search"
         self.delete_url_prefix = f"{self.base_url}/v1/memories/"
         self.timeout_s = timeout_s
@@ -44,6 +44,8 @@ class Mem0Client:
         }
 
     def _request(self, method: str, url: str, payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        if payload is None and method.upper() in {"POST", "PUT", "PATCH"}:
+            payload = {}
         data = json.dumps(payload or {}).encode("utf-8") if payload is not None else None
         req = urllib.request.Request(url, data=data, headers=self._headers(), method=method)
         try:
