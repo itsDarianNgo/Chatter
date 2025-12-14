@@ -219,10 +219,15 @@ assert_increase "${BASE_REASON_BOT}" "${AFTER_REASON_BOT}" "bot-origin suppressi
 assert_increase "${BASE_REASON_COOLDOWN}" "${AFTER_REASON_COOLDOWN}" "cooldown suppression"
 assert_increase "${BASE_PUBLISHED}" "${AFTER_PUBLISHED}" "messages_published"
 
-if [ "${AFTER_REASON_E2E}" -lt $((BASE_REASON_E2E + 1)) ]; then
-  if ! echo "${AFTER_STATS}" | grep -q "e2e_forced"; then
-    fail_with_stats "e2e_forced reason not observed" "${AFTER_STATS}"
-  fi
+FORCED_OBSERVED=false
+if [ "${AFTER_REASON_E2E}" -ge $((BASE_REASON_E2E + 1)) ]; then
+  FORCED_OBSERVED=true
+elif echo "${AFTER_STATS}" | grep -q "e2e_forced"; then
+  FORCED_OBSERVED=true
+fi
+
+if [ "${FORCED_OBSERVED}" != true ]; then
+  fail_with_stats "e2e_forced reason not observed" "${AFTER_STATS}"
 fi
 
 TAG_HITS=0
