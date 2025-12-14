@@ -56,6 +56,18 @@ def _maybe_add_emote(base: str, persona_id: str, event_id: str, room_cfg: dict, 
 
 
 class DeterministicReplyGenerator:
+    def __init__(self, mode: str = "deterministic") -> None:
+        self.generation_mode = mode
+
+    def describe(self) -> dict:
+        return {
+            "generation_mode": self.generation_mode,
+            "llm_provider": None,
+            "llm_model": None,
+            "prompt_manifest_path": None,
+            "provider_config_path": None,
+        }
+
     def generate_reply(self, persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict) -> str:
         persona_id = persona_cfg.get("persona_id", "persona")
         content = event_msg.get("content", "") or ""
@@ -95,10 +107,13 @@ class DeterministicReplyGenerator:
 
 
 class LLMReplyGenerator:
-    def __init__(self, base_path: Path, provider_config_path: str, prompt_manifest_path: str) -> None:
+    def __init__(
+        self, base_path: Path, provider_config_path: str, prompt_manifest_path: str, mode: str = "stub"
+    ) -> None:
         self.base_path = base_path
         self.provider_config_path = base_path / provider_config_path
         self.prompt_manifest_path = base_path / prompt_manifest_path
+        self.generation_mode = mode
         self.provider_config = load_llm_provider_config(self.provider_config_path)
         try:
             self.max_output_chars = int(self.provider_config.get("max_output_chars", 220))
@@ -106,6 +121,22 @@ class LLMReplyGenerator:
             self.max_output_chars = 220
         self.provider = self._build_provider()
         self.renderer = PromptRenderer(self.prompt_manifest_path, base_dir=base_path)
+
+    def describe(self) -> dict:
+        provider_type = self.provider_config.get("provider")
+        model = None
+        if provider_type == "litellm":
+            model = self.provider_config.get("litellm", {}).get("model")
+        elif provider_type == "stub":
+            model = "stub"
+
+        return {
+            "generation_mode": self.generation_mode,
+            "llm_provider": provider_type,
+            "llm_model": model,
+            "prompt_manifest_path": str(self.prompt_manifest_path),
+            "provider_config_path": str(self.provider_config_path),
+        }
 
     def _build_provider(self):
         provider_type = self.provider_config.get("provider")
@@ -167,8 +198,8 @@ class LLMReplyGenerator:
 def build_reply_generator(base_path: Path, mode: str, provider_config_path: str, prompt_manifest_path: str):
     normalized = (mode or "deterministic").lower()
     if normalized in {"stub", "litellm"}:
-        return LLMReplyGenerator(base_path, provider_config_path, prompt_manifest_path)
-    return DeterministicReplyGenerator()
+        return LLMReplyGenerator(base_path, provider_config_path, prompt_manifest_path, mode=normalized)
+    return DeterministicReplyGenerator(mode="deterministic")
 
 
 _default_generator = DeterministicReplyGenerator()

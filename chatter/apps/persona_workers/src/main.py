@@ -192,7 +192,24 @@ async def healthz() -> dict[str, str]:
 
 @app.get("/stats")
 async def stats() -> dict:
-    return service.stats.as_dict(list(service.personas.keys()), service.room_config.get("room_id", "room:demo"))
+    stats_payload = service.stats.as_dict(
+        list(service.personas.keys()), service.room_config.get("room_id", "room:demo")
+    )
+    describe_fn = getattr(service.reply_generator, "describe", None)
+    if callable(describe_fn):
+        try:
+            stats_payload.update(describe_fn())
+        except Exception:  # noqa: BLE001
+            stats_payload.update(
+                {
+                    "generation_mode": settings.generation_mode,
+                    "llm_provider": None,
+                    "llm_model": None,
+                    "prompt_manifest_path": None,
+                    "provider_config_path": None,
+                }
+            )
+    return stats_payload
 
 
 if __name__ == "__main__":
