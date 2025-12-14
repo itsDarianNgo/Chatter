@@ -116,12 +116,11 @@ class LLMReplyGenerator:
         self.provider_config_path = base_path / provider_config_path
         self.prompt_manifest_path = base_path / prompt_manifest_path
         self.generation_mode = mode
-        self.provider_config = load_llm_provider_config(self.provider_config_path)
-        try:
-            self.max_output_chars = int(self.provider_config.get("max_output_chars", 220))
-        except Exception:  # noqa: BLE001
-            self.max_output_chars = 220
-        self.provider = self._build_provider()
+        (
+            self.provider,
+            self.provider_config,
+            self.max_output_chars,
+        ) = build_llm_provider(self.base_path, self.provider_config_path)
         self.renderer = PromptRenderer(self.prompt_manifest_path, base_dir=base_path)
 
     def describe(self) -> dict:
@@ -139,24 +138,6 @@ class LLMReplyGenerator:
             "prompt_manifest_path": str(self.prompt_manifest_path),
             "provider_config_path": str(self.provider_config_path),
         }
-
-    def _build_provider(self):
-        provider_type = self.provider_config.get("provider")
-        if provider_type == "stub":
-            stub_cfg = self.provider_config.get("stub", {})
-            fixtures_path = self.base_path / stub_cfg.get("fixtures_path", "")
-            return StubLLMProvider(
-                fixtures_path=fixtures_path,
-                default_response=stub_cfg.get("default_response", "ok"),
-                key_strategy=stub_cfg.get("key_strategy", "persona_marker"),
-                max_output_chars=self.max_output_chars,
-                provider_name="stub",
-            )
-        if provider_type == "litellm":
-            from packages.llm_runtime.src.litellm_provider import LiteLLMProvider
-
-            return LiteLLMProvider(self.provider_config)
-        raise ValueError(f"Unsupported provider type: {provider_type}")
 
     def _recent_messages(self, state, room_id: str, budget_limit: int, budget_window_ms: int):
         room_state = state.get_room_state(room_id, budget_limit, budget_window_ms)
@@ -217,3 +198,31 @@ def generate_reply(
     persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict, memory_context: str | None = None
 ) -> str:
     return _default_generator.generate_reply(persona_cfg, room_cfg, event_msg, state, tags, memory_context)
+
+
+def build_llm_provider(base_path: Path, provider_config_path: Path):
+    provider_config = load_llm_provider_config(provider_config_path)
+    try:
+        max_output_chars = int(provider_config.get("max_output_chars", 220))
+    except Exception:  # noqa: BLE001
+        max_output_chars = 220
+
+    provider_type = provider_config.get("provider")
+    if provider_type == "stub":
+        stub_cfg = provider_config.get("stub", {})
+        fixtures_path = base_path / stub_cfg.get("fixtures_path", "")
+        provider = StubLLMProvider(
+            fixtures_path=fixtures_path,
+            default_response=stub_cfg.get("default_response", "ok"),
+            key_strategy=stub_cfg.get("key_strategy", "persona_marker"),
+            max_output_chars=max_output_chars,
+            provider_name="stub",
+        )
+    elif provider_type == "litellm":
+        from packages.llm_runtime.src.litellm_provider import LiteLLMProvider
+
+        provider = LiteLLMProvider(provider_config)
+    else:
+        raise ValueError(f"Unsupported provider type: {provider_type}")
+
+    return provider, provider_config, max_output_chars
