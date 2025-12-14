@@ -1,0 +1,22 @@
+{
+  "schema_name": "MemoryItem",
+  "schema_version": "1.0.0",
+  "id": "mem_room_001",
+  "ts": "2024-05-02T15:30:00Z",
+  "scope": "persona_room",
+  "scope_key": "persona_room:room:demo:ClipGoblin",
+  "category": "room_lore",
+  "subject": "room intro",
+  "value": "demo room crowd cheers loudest when clutch plays happen",
+  "confidence": 0.85,
+  "ttl_days": 60,
+  "source": {
+    "kind": "chat_message",
+    "message_id": "msg_room_01",
+    "user_id": "user123",
+    "origin": "human"
+  },
+  "tags": {
+    "sample": "room"
+  }
+}

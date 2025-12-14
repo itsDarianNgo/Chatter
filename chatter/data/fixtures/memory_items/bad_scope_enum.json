@@ -1,0 +1,19 @@
+{
+  "schema_name": "MemoryItem",
+  "schema_version": "1.0.0",
+  "id": "bad_scope",
+  "ts": "2024-05-04T12:00:00Z",
+  "scope": "channel",
+  "scope_key": "channel:room:demo:ClipGoblin",
+  "category": "running_joke",
+  "subject": "bad scope",
+  "value": "uses an unsupported scope",
+  "confidence": 0.5,
+  "ttl_days": 30,
+  "source": {
+    "kind": "system_seed",
+    "message_id": null,
+    "user_id": null,
+    "origin": "system"
+  }
+}

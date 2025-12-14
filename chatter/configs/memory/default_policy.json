@@ -1,0 +1,32 @@
+{
+  "schema_name": "MemoryPolicy",
+  "schema_version": "1.0.0",
+  "enabled": true,
+  "scopes": ["persona", "persona_room"],
+  "ttl_days_default": 30,
+  "allow_categories": [
+    "chat_summary",
+    "highlight",
+    "room_lore",
+    "running_joke",
+    "persona_trait",
+    "preference",
+    "relationship"
+  ],
+  "deny_categories": ["pii", "secrets"],
+  "redaction": {
+    "enabled": true,
+    "patterns": [
+      { "name": "email", "regex": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}" },
+      { "name": "phone", "regex": "\\b(?:\\+?\\d[\\d -]{7,}\\d)\\b" }
+    ]
+  },
+  "write_rules": {
+    "min_confidence": 0.4,
+    "max_writes_per_hour_per_persona": 10
+  },
+  "read_rules": {
+    "max_items": 20,
+    "max_chars_total": 2000
+  }
+}
