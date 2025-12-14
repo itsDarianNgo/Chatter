@@ -1,0 +1,33 @@
+{
+  "schema_name": "PromptManifest",
+  "schema_version": "1.0.0",
+  "prompts": [
+    {
+      "id": "persona_reply_v1",
+      "purpose": "persona_reply",
+      "version": "1.0.0",
+      "path": "prompts/persona/reply_v1.md",
+      "sha256": "1d234c99a14bf92ca6f63d52e373249d17f5edeb28fa331078e90cf30ff70cbe",
+      "input_vars": ["persona_name", "room_id", "recent_messages", "trigger_content", "policy_tags"],
+      "output_contract": { "type": "text", "notes": "Single-line persona reply" }
+    },
+    {
+      "id": "memory_extract_v1",
+      "purpose": "memory_extract",
+      "version": "1.0.0",
+      "path": "prompts/memory/extract_v1.md",
+      "sha256": "04190d0280d0558db13d003e74e13d81113a9123c4298478312ff4b7c302c1a6",
+      "input_vars": ["room_id", "persona_id", "persona_name", "recent_messages"],
+      "output_contract": { "type": "json", "notes": "Single line JSON with facts" }
+    },
+    {
+      "id": "memory_summarize_v1",
+      "purpose": "memory_summarize",
+      "version": "1.0.0",
+      "path": "prompts/memory/summarize_v1.md",
+      "sha256": "de0472f48fd1136d776f3547ff31455d017e8d657ce805d6f70f1f5a295da799",
+      "input_vars": ["persona_id", "persona_name", "memory_items"],
+      "output_contract": { "type": "text", "notes": "Single line memory recap" }
+    }
+  ]
+}

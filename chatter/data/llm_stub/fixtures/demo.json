@@ -1,0 +1,13 @@
+{
+  "schema_name": "LLMStubFixtures",
+  "schema_version": "1.0.0",
+  "strategy": "persona_marker",
+  "cases": [
+    {"key": "ClipGoblin::E2E_TEST_", "response": "ClipGoblin sees marker E2E_TEST_ poppin"},
+    {"key": "ClipGoblin::E2E_TEST_BOTLOOP_", "response": "ClipGoblin loops E2E_TEST_BOTLOOP_ clean"},
+    {"key": "ClipGoblin::E2E_TEST_POLICY_", "response": "ClipGoblin policy ping E2E_TEST_POLICY_"},
+    {"key": "EchoKnight::E2E_TEST_", "response": "EchoKnight echoes E2E_TEST_ with style"},
+    {"key": "EchoKnight::DEFAULT", "response": "EchoKnight default stub"},
+    {"key": "ClipGoblin::DEFAULT", "response": "ClipGoblin default stub"}
+  ]
+}

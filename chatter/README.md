@@ -28,6 +28,17 @@
 - Open the UI at `http://localhost:5173` (connects to `ws://localhost:8080/ws`)
 - Optional load: `python apps/tools/stub_publisher/publish.py --rate 20`
 
+## Milestone 2 E2E
+- persona_workers now runs in docker compose and exposes `http://localhost:8090/healthz` for stats and health.
+- One-command local test sweep: `npm run compose:test:e2e` (brings up compose, waits for services, runs all E2E tests, then tears down).
+- The compose E2E path layers `docker-compose.test.yml` on top of the base stack to pin persona_workers to the stub LLM provider for deterministic runs.
+- Alternatively:
+  - `npm run compose:up` (or `docker compose up --build`)
+  - `bash scripts/integration/wait_for_services.sh`
+  - `npm run test:e2e:all`
+  - `npm run compose:down`
+- Windows users should run the bash scripts via Git Bash or WSL; a PowerShell helper is available at `scripts/integration/compose_test_e2e.ps1`.
+
 ## Core event channels (conceptual)
 - `stream.context` — rolling “what’s happening on stream”
 - `chat.ingest` — messages to be broadcast (bots + humans)

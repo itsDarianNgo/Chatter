@@ -18,6 +18,9 @@ class Settings:
     room_config_path: str = _env("ROOM_CONFIG_PATH", "configs/rooms/demo.json")
     persona_config_dir: str = _env("PERSONA_CONFIG_DIR", "configs/personas")
     moderation_config_path: str = _env("MODERATION_CONFIG_PATH", "configs/moderation/default.json")
+    generation_mode: str = _env("GENERATION_MODE", "deterministic")
+    llm_provider_config_path: str = _env("LLM_PROVIDER_CONFIG_PATH", "configs/llm/providers/stub.json")
+    prompt_manifest_path: str = _env("PROMPT_MANIFEST_PATH", "prompts/manifest.json")
     schema_chat_message_path: str = _env(
         "SCHEMA_CHAT_MESSAGE_PATH", "packages/protocol/jsonschema/chat_message.schema.json"
     )
