@@ -11,10 +11,12 @@ class RoomState:
     bot_budget_window_ms: int = 10_000
     bot_budget_limit: int = 5
     bot_publish_times: Deque[int] = field(init=False)
+    event_times: Deque[int] = field(init=False)
 
     def __post_init__(self) -> None:
         self.recent_messages = deque(maxlen=self.max_recent)
         self.bot_publish_times = deque()
+        self.event_times = deque()
 
     def add_message(self, message: dict) -> None:
         minimal = {
@@ -29,15 +31,28 @@ class RoomState:
 
     def record_bot_publish(self, now_ms: int) -> None:
         self.bot_publish_times.append(now_ms)
-        self._prune(now_ms)
+        self._prune_budget(now_ms)
+
+    def record_event(self, ts_ms: int) -> None:
+        self.event_times.append(ts_ms)
+        self._prune_events(ts_ms)
 
     def within_budget(self, now_ms: int) -> bool:
-        self._prune(now_ms)
+        self._prune_budget(now_ms)
         return len(self.bot_publish_times) < self.bot_budget_limit
 
-    def _prune(self, now_ms: int) -> None:
+    def rate_10s(self, now_ms: int) -> int:
+        self._prune_events(now_ms)
+        return len(self.event_times)
+
+    def _prune_budget(self, now_ms: int) -> None:
         while self.bot_publish_times and now_ms - self.bot_publish_times[0] > self.bot_budget_window_ms:
             self.bot_publish_times.popleft()
+
+    def _prune_events(self, now_ms: int) -> None:
+        window_ms = 10_000
+        while self.event_times and now_ms - self.event_times[0] > window_ms:
+            self.event_times.popleft()
 
 
 @dataclass
@@ -45,9 +60,23 @@ class PersonaStats:
     persona_id: str
     last_spoke_at_ms: Optional[int] = None
     messages_published: int = 0
+    mention_events: Deque[int] = field(default_factory=lambda: deque())
+
+    def record_mention(self, ts_ms: int) -> None:
+        self.mention_events.append(ts_ms)
+        self._prune_mentions(ts_ms)
+
+    def mentions_last_30s(self, now_ms: int) -> int:
+        self._prune_mentions(now_ms)
+        return len(self.mention_events)
+
+    def _prune_mentions(self, now_ms: int) -> None:
+        window_ms = 30_000
+        while self.mention_events and now_ms - self.mention_events[0] > window_ms:
+            self.mention_events.popleft()
 
 
-class RuntimeState:
+class State:
     def __init__(self, max_recent: int, dedupe_size: int) -> None:
         self.max_recent = max_recent
         self.dedupe_size = dedupe_size
@@ -85,6 +114,17 @@ class RuntimeState:
         room_state = self.get_room_state(room_id, budget_limit, budget_window_ms)
         room_state.record_bot_publish(now_ms)
 
+    def record_event(self, room_id: str, ts_ms: int, origin: str, budget_limit: int, budget_window_ms: int) -> None:
+        room_state = self.get_room_state(room_id, budget_limit, budget_window_ms)
+        room_state.record_event(ts_ms)
+
+    def get_room_rate_10s(self, room_id: str, now_ms: int, budget_limit: int, budget_window_ms: int) -> int:
+        room_state = self.get_room_state(room_id, budget_limit, budget_window_ms)
+        return room_state.rate_10s(now_ms)
+
+
+RuntimeState = State
+
 
 @dataclass
 class Stats:
@@ -95,6 +135,24 @@ class Stats:
     messages_suppressed_budget: int = 0
     messages_suppressed_bot_origin: int = 0
     last_decision_reasons: Dict[str, str] = field(default_factory=dict)
+    decisions_by_reason: Dict[str, int] = field(default_factory=dict)
+    last_decisions: Deque[dict] = field(default_factory=lambda: deque(maxlen=20))
+
+    def record_decision(self, persona_id: str, reason: str, tags: Optional[dict] = None) -> None:
+        tags = tags or {}
+        self.decisions_by_reason[reason] = self.decisions_by_reason.get(reason, 0) + 1
+        decision = {
+            "persona_id": persona_id,
+            "reason": reason,
+        }
+        if tags:
+            decision.update(tags)
+        self.last_decisions.append(
+            {
+                "ts_ms": tags.get("ts_ms"),
+                **decision,
+            }
+        )
 
     def as_dict(self, enabled_personas: List[str], room_id: str) -> dict:
         return {
@@ -105,6 +163,8 @@ class Stats:
             "messages_suppressed_budget": self.messages_suppressed_budget,
             "messages_suppressed_bot_origin": self.messages_suppressed_bot_origin,
             "last_decision_reasons": self.last_decision_reasons,
+            "decisions_by_reason": self.decisions_by_reason,
+            "recent_decisions": list(self.last_decisions),
             "enabled_personas": enabled_personas,
             "room_id": room_id,
         }

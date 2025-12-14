@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LLM Provider Config",
+  "type": "object",
+  "properties": {
+    "schema_name": { "const": "LLMProviderConfig" },
+    "schema_version": { "const": "1.0.0" },
+    "provider": { "enum": ["stub"] },
+    "mode": { "enum": ["deterministic_stub"] },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 60000
+    },
+    "max_output_chars": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 500
+    },
+    "stub": {
+      "type": "object",
+      "properties": {
+        "fixtures_path": { "type": "string" },
+        "default_response": { "type": "string" },
+        "key_strategy": { "enum": ["persona_marker", "marker_only"] }
+      },
+      "required": ["fixtures_path", "default_response", "key_strategy"],
+      "additionalProperties": false
+    },
+    "metadata": { "type": "object" }
+  },
+  "required": [
+    "schema_name",
+    "schema_version",
+    "provider",
+    "mode",
+    "timeout_ms",
+    "max_output_chars",
+    "stub"
+  ],
+  "additionalProperties": false
+}

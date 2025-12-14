@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Memory Policy",
+  "type": "object",
+  "properties": {
+    "schema_name": { "const": "MemoryPolicy" },
+    "schema_version": { "const": "1.0.0" },
+    "enabled": { "type": "boolean" },
+    "scopes": {
+      "type": "array",
+      "items": { "enum": ["persona", "persona_room", "persona_user"] }
+    },
+    "ttl_days_default": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 365
+    },
+    "allow_categories": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "deny_categories": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "redaction": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "patterns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "regex": { "type": "string" }
+            },
+            "required": ["name", "regex"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["enabled", "patterns"],
+      "additionalProperties": false
+    },
+    "write_rules": {
+      "type": "object",
+      "properties": {
+        "min_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_writes_per_hour_per_persona": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": ["min_confidence", "max_writes_per_hour_per_persona"],
+      "additionalProperties": false
+    },
+    "read_rules": {
+      "type": "object",
+      "properties": {
+        "max_items": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "max_chars_total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000
+        }
+      },
+      "required": ["max_items", "max_chars_total"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_name",
+    "schema_version",
+    "enabled",
+    "scopes",
+    "ttl_days_default",
+    "allow_categories",
+    "deny_categories",
+    "redaction",
+    "write_rules",
+    "read_rules"
+  ],
+  "additionalProperties": false
+}
