@@ -30,7 +30,8 @@
     "test:e2e:all": "npm run test:e2e && npm run test:e2e:botloop && npm run test:e2e:policy && npm run test:e2e:memory",
     "compose:test:e2e": "bash scripts/integration/compose_test_e2e.sh",
     "compose:test:e2e:memory:llm": "bash scripts/integration/compose_test_memory_llm.sh",
-    "test:llm:smoke": "python scripts/integration/litellm_smoke.py"
+    "test:llm:smoke": "python scripts/integration/litellm_smoke.py",
+    "test:mem0:smoke": "python scripts/integration/mem0_smoke.py"
   },
   "dependencies": {
     "ajv": "^8.17.1",

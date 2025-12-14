@@ -11,7 +11,10 @@ import uvicorn
 from fastapi import FastAPI
 
 from packages.memory_runtime.src import (
+    Mem0Client,
+    Mem0MemoryStore,
     MemoryItem,
+    MemoryStore,
     StubMemoryStore,
     apply_redactions,
     load_memory_policy,
@@ -70,7 +73,7 @@ class PersonaWorkerService:
         self.memory_enabled = settings.memory_enabled
         self.memory_backend = None
         self.memory_policy = None
-        self.memory_store: StubMemoryStore | None = None
+        self.memory_store: MemoryStore | None = None
         self.memory_policy_path: str | None = None
         self.memory_fixtures_path: str | None = None
         self.memory_max_items = settings.memory_max_items
@@ -111,6 +114,28 @@ class PersonaWorkerService:
                 self.memory_fixtures_path = str(fixtures_path)
                 self.stats.memory_fixtures_path = self.memory_fixtures_path
                 self.memory_store = StubMemoryStore(fixtures_path)
+            elif backend == "mem0":
+                self.stats.mem0_base_url = settings.mem0_base_url
+                self.stats.mem0_org_configured = bool(settings.mem0_org_id)
+                self.stats.mem0_project_configured = bool(settings.mem0_project_id)
+
+                if not settings.mem0_api_key:
+                    self.memory_enabled = False
+                    self.stats.memory_enabled = False
+                    self.stats.last_memory_error = "mem0_missing_api_key"
+                    logger.warning("Mem0 backend requested but MEM0_API_KEY missing; disabling memory")
+                    return
+
+                client = Mem0Client(
+                    api_key=settings.mem0_api_key,
+                    base_url=settings.mem0_base_url,
+                    timeout_s=settings.mem0_timeout_s,
+                    org_id=settings.mem0_org_id or None,
+                    project_id=settings.mem0_project_id or None,
+                )
+                self.memory_store = Mem0MemoryStore(
+                    client, max_items=self.memory_max_items, max_chars=self.memory_max_chars
+                )
             else:
                 self.memory_enabled = False
                 self.stats.memory_enabled = False
@@ -235,6 +260,9 @@ class PersonaWorkerService:
             "memory_extract_llm_attempted": self.stats.memory_extract_llm_attempted,
             "memory_extract_llm_succeeded": self.stats.memory_extract_llm_succeeded,
             "memory_extract_llm_failed": self.stats.memory_extract_llm_failed,
+            "mem0_base_url": self.stats.mem0_base_url,
+            "mem0_org_configured": self.stats.mem0_org_configured,
+            "mem0_project_configured": self.stats.mem0_project_configured,
             "last_memory_read_ids": list(self.stats.last_memory_read_ids),
             "last_memory_write_ids": list(self.stats.last_memory_write_ids),
             "last_memory_extract_error": self.stats.last_memory_extract_error,
