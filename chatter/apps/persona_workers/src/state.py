@@ -151,6 +151,16 @@ class Stats:
     memory_writes_rejected: int = 0
     memory_writes_redacted: int = 0
     memory_writes_failed: int = 0
+    memory_extract_strategy: str | None = None
+    memory_llm_provider: str | None = None
+    memory_llm_model: str | None = None
+    memory_extract_llm_attempted: int = 0
+    memory_extract_llm_succeeded: int = 0
+    memory_extract_llm_failed: int = 0
+    last_memory_extract_error: str | None = None
+    mem0_base_url: str | None = None
+    mem0_org_configured: bool = False
+    mem0_project_configured: bool = False
     last_memory_read_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=10))
     last_memory_write_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=10))
     last_memory_error: str | None = None
@@ -198,7 +208,17 @@ class Stats:
             "memory_writes_rejected": self.memory_writes_rejected,
             "memory_writes_redacted": self.memory_writes_redacted,
             "memory_writes_failed": self.memory_writes_failed,
+            "memory_extract_strategy": self.memory_extract_strategy,
+            "memory_llm_provider": self.memory_llm_provider,
+            "memory_llm_model": self.memory_llm_model,
+            "memory_extract_llm_attempted": self.memory_extract_llm_attempted,
+            "memory_extract_llm_succeeded": self.memory_extract_llm_succeeded,
+            "memory_extract_llm_failed": self.memory_extract_llm_failed,
+            "mem0_base_url": self.mem0_base_url,
+            "mem0_org_configured": self.mem0_org_configured,
+            "mem0_project_configured": self.mem0_project_configured,
             "last_memory_read_ids": list(self.last_memory_read_ids),
             "last_memory_write_ids": list(self.last_memory_write_ids),
+            "last_memory_extract_error": self.last_memory_extract_error,
             "last_memory_error": self.last_memory_error,
         }

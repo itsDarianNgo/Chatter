@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import json
 import re
 from pathlib import Path
 from typing import Dict
@@ -31,6 +30,30 @@ def _marker_prefix(marker: str) -> str:
             idx = marker.find(token)
             return marker[idx : idx + len(token) + 12]
     return marker[:16]
+
+
+def _is_memory_extract(req: LLMRequest) -> bool:
+    haystack = "\n".join([req.system_prompt or "", req.user_prompt or ""])
+    return "MEMORY EXTRACTION REQUEST" in haystack
+
+
+def _build_memory_extract_response(req: LLMRequest) -> str:
+    content = req.content or ""
+    match = re.search(r"streamer is called\s+([A-Za-z0-9_()\-]+)", content, flags=re.IGNORECASE)
+    value = match.group(1) if match else "Captain"
+    item = {
+        "schema_name": "MemoryItem",
+        "schema_version": "1.0.0",
+        "id": "memory_stub_streamer",
+        "ts": "2024-01-01T00:00:00Z",
+        "category": "room_lore",
+        "subject": "streamer_name",
+        "value": value,
+        "confidence": 0.9,
+        "ttl_days": 14,
+        "source": {"kind": "chat_message", "message_id": None, "user_id": None, "origin": "human"},
+    }
+    return json.dumps([item], ensure_ascii=False)
 
 
 class StubLLMProvider(LLMProvider):
@@ -75,6 +98,11 @@ class StubLLMProvider(LLMProvider):
         return self.default_response
 
     def generate(self, req: LLMRequest) -> LLMResponse:
+        if _is_memory_extract(req):
+            text = _build_memory_extract_response(req)
+            text = _clean_text(text, self.max_output_chars)
+            return LLMResponse(text=text, provider=self.provider_name, model="stub", meta={"mode": "memory_extract"})
+
         key = self._resolve_key(req)
         raw = self._lookup_response(key)
         text = _clean_text(raw, self.max_output_chars)

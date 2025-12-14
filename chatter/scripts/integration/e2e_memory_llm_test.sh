@@ -1,0 +1,167 @@
+set -euo pipefail
+
+REDIS_CONTAINER=${REDIS_CONTAINER:-chatter-redis-1}
+PERSONA_HTTP=${PERSONA_HTTP:-http://localhost:8090}
+INGEST_STREAM=${INGEST_STREAM:-stream:chat.ingest}
+ROOM_ID=${ROOM_ID:-room:demo}
+WAIT_AFTER_PUBLISH_S=${WAIT_AFTER_PUBLISH_S:-2}
+CONNECT_TIMEOUT_S=${CONNECT_TIMEOUT_S:-12}
+
+command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 2; }
+command -v curl  >/dev/null 2>&1 || { echo "curl is required" >&2; exit 2; }
+command -v python >/dev/null 2>&1 || { echo "python is required" >&2; exit 2; }
+command -v tr    >/dev/null 2>&1 || { echo "tr is required" >&2; exit 2; }
+
+strip_cr() { tr -d '\r'; }
+
+fetch_stats() {
+  curl -s "${PERSONA_HTTP}/stats" \
+    | python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(",", ":")))' \
+    | strip_cr
+}
+
+extract_int() {
+  local stats="$1" key="$2"
+  python -c '
+import json,sys
+key=sys.argv[1]
+try:
+    data=json.load(sys.stdin)
+except Exception:
+    print("")
+    sys.exit(0)
+val=data.get(key)
+if isinstance(val,(int,float)):
+    print(int(val))
+else:
+    print("")
+' "$key" <<<"${stats}" | strip_cr
+}
+
+extract_bool() {
+  local stats="$1" key="$2"
+  python -c '
+import json,sys
+key=sys.argv[1]
+try:
+    data=json.load(sys.stdin)
+except Exception:
+    print("")
+    sys.exit(0)
+val=data.get(key)
+if isinstance(val,bool):
+    print("true" if val else "false")
+elif isinstance(val,str) and val.strip().lower() in ("true","false"):
+    print(val.strip().lower())
+else:
+    print("")
+' "$key" <<<"${stats}" | strip_cr
+}
+
+extract_string() {
+  local stats="$1" key="$2"
+  python -c '
+import json,sys
+key=sys.argv[1]
+try:
+    data=json.load(sys.stdin)
+except Exception:
+    print("")
+    sys.exit(0)
+val=data.get(key)
+if isinstance(val,str):
+    print(val)
+elif val is None:
+    print("")
+else:
+    print("")
+' "$key" <<<"${stats}" | strip_cr
+}
+
+require_counter() {
+  local stats="$1" key="$2" label="$3"
+  local val
+  val="$(extract_int "${stats}" "${key}")"
+  if [ -z "${val}" ]; then
+    echo "FAIL: missing counter ${label} (${key})" >&2
+    echo "---- /stats ----" >&2
+    echo "${stats}" >&2
+    exit 1
+  fi
+  echo "${val}"
+}
+
+publish_message() {
+  local msg_id="$1" origin="$2" content="$3" user_id="$4" display_name="$5"
+  local payload ts
+  ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  payload=$(cat <<EJSON | tr -d '\n'
+{"schema_name":"ChatMessage","schema_version":"1.0.0","id":"${msg_id}","ts":"${ts}","room_id":"${ROOM_ID}","origin":"${origin}","user_id":"${user_id}","display_name":"${display_name}","content":"${content}","reply_to":null,"mentions":[],"emotes":[],"badges":[],"trace":{"producer":"e2e_memory_llm"}}
+EJSON
+)
+  printf '%s' "${payload}" | docker exec -i "${REDIS_CONTAINER}" redis-cli -x XADD "${INGEST_STREAM}" "*" data >/dev/null
+}
+
+if ! curl -sf "${PERSONA_HTTP}/healthz" >/dev/null; then
+  echo "FAIL: persona_workers not reachable at ${PERSONA_HTTP}/healthz" >&2
+  exit 1
+fi
+
+BASE_STATS="$(fetch_stats)"
+
+MEMORY_ENABLED="$(extract_bool "${BASE_STATS}" "memory_enabled")"
+if [ -z "${MEMORY_ENABLED}" ]; then
+  if echo "${BASE_STATS}" | grep -q '"memory_enabled":true'; then
+    MEMORY_ENABLED="true"
+  elif echo "${BASE_STATS}" | grep -q '"memory_enabled":false'; then
+    MEMORY_ENABLED="false"
+  fi
+fi
+
+if [ "${MEMORY_ENABLED}" != "true" ]; then
+  LAST_ERR="$(extract_string "${BASE_STATS}" "last_memory_error")"
+  echo "FAIL: memory is disabled; last_memory_error=${LAST_ERR}" >&2
+  echo "---- /stats ----" >&2
+  echo "${BASE_STATS}" >&2
+  exit 1
+fi
+
+STRATEGY="$(extract_string "${BASE_STATS}" "memory_extract_strategy")"
+if [ "${STRATEGY}" != "llm" ]; then
+  echo "FAIL: memory_extract_strategy expected llm, got ${STRATEGY}" >&2
+  echo "---- /stats ----" >&2
+  echo "${BASE_STATS}" >&2
+  exit 1
+fi
+
+BASE_ATTEMPTS="$(require_counter "${BASE_STATS}" "memory_extract_llm_attempted" "memory_extract_llm_attempted")"
+BASE_WRITES="$(require_counter "${BASE_STATS}" "memory_writes_accepted" "memory_writes_accepted")"
+BASE_ITEMS="$(require_counter "${BASE_STATS}" "memory_items_total" "memory_items_total")"
+
+TEST_ID="E2E_TEST_MEMORY_LLM_${SECONDS}_$$"
+WRITE_CONTENT="remember: @ClipGoblin the streamer is called Captain (${TEST_ID}_WRITE)"
+
+publish_message "memory_llm_write_${TEST_ID}" "human" "${WRITE_CONTENT}" "user:memllm" "mem_llm_user"
+
+start=$SECONDS
+write_ok=false
+while (( SECONDS - start < CONNECT_TIMEOUT_S )); do
+  sleep "${WAIT_AFTER_PUBLISH_S}"
+  CUR_STATS="$(fetch_stats)"
+  CUR_ATTEMPTS="$(require_counter "${CUR_STATS}" "memory_extract_llm_attempted" "memory_extract_llm_attempted")"
+  CUR_WRITES="$(require_counter "${CUR_STATS}" "memory_writes_accepted" "memory_writes_accepted")"
+  CUR_ITEMS="$(require_counter "${CUR_STATS}" "memory_items_total" "memory_items_total")"
+  if (( CUR_ATTEMPTS >= BASE_ATTEMPTS + 1 )) && (( CUR_WRITES >= BASE_WRITES + 1 )) && (( CUR_ITEMS >= BASE_ITEMS + 1 )); then
+    write_ok=true
+    break
+  fi
+done
+
+if [ "${write_ok}" != "true" ]; then
+  echo "FAIL: LLM memory write did not register" >&2
+  echo "BASE: ${BASE_STATS}" >&2
+  echo "CUR: ${CUR_STATS:-}" >&2
+  exit 1
+fi
+
+echo "PASS: LLM memory extraction pipeline ok (attempts ${BASE_ATTEMPTS}->${CUR_ATTEMPTS}, writes ${BASE_WRITES}->${CUR_WRITES}, items ${BASE_ITEMS}->${CUR_ITEMS})"
