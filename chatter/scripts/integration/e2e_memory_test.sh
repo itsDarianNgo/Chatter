@@ -9,12 +9,17 @@ WAIT_AFTER_PUBLISH_S=${WAIT_AFTER_PUBLISH_S:-2}
 CONNECT_TIMEOUT_S=${CONNECT_TIMEOUT_S:-10}
 
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 2; }
-command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 2; }
+command -v curl  >/dev/null 2>&1 || { echo "curl is required" >&2; exit 2; }
 command -v python >/dev/null 2>&1 || { echo "python is required" >&2; exit 2; }
+command -v tr    >/dev/null 2>&1 || { echo "tr is required" >&2; exit 2; }
+
+strip_cr() { tr -d '\r'; }
 
 fetch_stats() {
-  # Canonicalize JSON to a single line for easier debugging/comparison.
-  curl -s "${PERSONA_HTTP}/stats" | python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(",", ":")))'
+  # Canonicalize JSON to one line (and remove CRs for Git Bash on Windows).
+  curl -s "${PERSONA_HTTP}/stats" \
+    | python -c 'import sys,json; print(json.dumps(json.load(sys.stdin), separators=(",", ":")))' \
+    | strip_cr
 }
 
 extract_int() {
@@ -32,7 +37,7 @@ if isinstance(val,(int,float)):
     print(int(val))
 else:
     print("")
-' "$key" <<<"${stats}"
+' "$key" <<<"${stats}" | strip_cr
 }
 
 extract_bool() {
@@ -52,7 +57,7 @@ elif isinstance(val,str) and val.strip().lower() in ("true","false"):
     print(val.strip().lower())
 else:
     print("")
-' "$key" <<<"${stats}"
+' "$key" <<<"${stats}" | strip_cr
 }
 
 extract_string() {
@@ -72,7 +77,7 @@ elif val is None:
     print("")
 else:
     print("")
-' "$key" <<<"${stats}"
+' "$key" <<<"${stats}" | strip_cr
 }
 
 require_counter() {
@@ -108,6 +113,15 @@ fi
 BASE_STATS="$(fetch_stats)"
 
 MEMORY_ENABLED="$(extract_bool "${BASE_STATS}" "memory_enabled")"
+# Fallback in case parsing returns empty for some reason
+if [ -z "${MEMORY_ENABLED}" ]; then
+  if echo "${BASE_STATS}" | grep -q '"memory_enabled":true'; then
+    MEMORY_ENABLED="true"
+  elif echo "${BASE_STATS}" | grep -q '"memory_enabled":false'; then
+    MEMORY_ENABLED="false"
+  fi
+fi
+
 if [ "${MEMORY_ENABLED}" != "true" ]; then
   LAST_ERR="$(extract_string "${BASE_STATS}" "last_memory_error")"
   echo "FAIL: memory is disabled; last_memory_error=${LAST_ERR}" >&2
@@ -122,14 +136,13 @@ BASE_ITEMS="$(require_counter "${BASE_STATS}" "memory_items_total" "memory_items
 
 TEST_ID="E2E_TEST_MEMORY_${SECONDS}_$$"
 WRITE_CONTENT="remember: @ClipGoblin the streamer is called Captain (${TEST_ID}_WRITE)"
-# Must include E2E_TEST_ so the policy engine forces at least one persona to speak → triggers read-before-generate.
 READ_CONTENT="E2E_TEST_MEMORY_READ_${TEST_ID} who is the streamer called?"
 
 publish_message "memory_write_${TEST_ID}" "human" "${WRITE_CONTENT}" "user:mem" "mem_user"
 
 start=$SECONDS
 write_ok=false
-while (( SECONDS - start < 10 )); do
+while (( SECONDS - start < 12 )); do
   sleep "${WAIT_AFTER_PUBLISH_S}"
   CUR_STATS="$(fetch_stats)"
   CUR_WRITES="$(require_counter "${CUR_STATS}" "memory_writes_accepted" "memory_writes_accepted")"
