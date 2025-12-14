@@ -1,0 +1,16 @@
+{
+  "schema_name": "LLMProviderConfig",
+  "schema_version": "1.0.0",
+  "provider": "stub",
+  "mode": "deterministic_stub",
+  "timeout_ms": 5000,
+  "max_output_chars": 200,
+  "stub": {
+    "fixtures_path": "data/llm_stub/fixtures/demo.json",
+    "default_response": "lol",
+    "key_strategy": "persona_marker"
+  },
+  "metadata": {
+    "description": "Deterministic stub provider for CI"
+  }
+}
