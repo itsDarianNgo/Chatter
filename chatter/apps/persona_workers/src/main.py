@@ -18,11 +18,12 @@ from packages.memory_runtime.src import (
     should_store_item,
     validate_memory_item_dict,
 )
-from packages.llm_runtime.src import LLMRequest
+from packages.memory_runtime.src.llm_extract import LLMMemoryExtractor
+from packages.llm_runtime.src import LLMRequest, PromptRenderer
 
 from .bus_redis_streams import ack, connect, ensure_consumer_group, read_messages
 from .config_loader import ConfigLoader
-from .generator import LLMReplyGenerator, build_reply_generator
+from .generator import LLMReplyGenerator, build_llm_provider, build_reply_generator
 from .policy import PolicyEngine, ts_ms_from_event
 from .publisher import publish_chat_message
 from .settings import settings
@@ -76,10 +77,15 @@ class PersonaWorkerService:
         self.memory_max_chars = settings.memory_max_chars
         self.memory_extract_strategy = (settings.memory_extract_strategy or "heuristic").lower()
         self.memory_scope_user_enabled = settings.memory_scope_user_enabled
+        self.memory_extractor: LLMMemoryExtractor | None = None
+        self.memory_llm_renderer: PromptRenderer | None = None
+        self.memory_llm_provider = None
+        self.memory_llm_provider_config: dict | None = None
         self.memory_write_window_ms = 60_000
         self.memory_write_limit = 5
         self.memory_write_times: dict[str, deque[int]] = {}
         self._init_memory()
+        self._init_memory_extractor()
 
     async def start(self) -> None:
         await self._connect()
@@ -87,6 +93,7 @@ class PersonaWorkerService:
 
     def _init_memory(self) -> None:
         self.stats.memory_enabled = self.memory_enabled
+        self.stats.memory_extract_strategy = self.memory_extract_strategy
         try:
             if not self.memory_enabled:
                 return
@@ -115,6 +122,59 @@ class PersonaWorkerService:
             self.stats.last_memory_error = str(exc)[:200]
             logger.warning("Memory init failed: %s", exc)
 
+    def _init_memory_extractor(self) -> None:
+        self.stats.memory_llm_provider = None
+        self.stats.memory_llm_model = None
+        if not (self.memory_enabled and self.memory_policy):
+            return
+        if self.memory_extract_strategy != "llm":
+            return
+
+        try:
+            renderer = None
+            provider = None
+            provider_cfg = None
+            max_output_chars = self.memory_max_chars
+
+            if isinstance(self.reply_generator, LLMReplyGenerator):
+                renderer = self.reply_generator.renderer
+                provider = self.reply_generator.provider
+                provider_cfg = getattr(self.reply_generator, "provider_config", None)
+                max_output_chars = getattr(self.reply_generator, "max_output_chars", self.memory_max_chars)
+
+            if renderer is None or provider is None:
+                provider, provider_cfg, max_output_chars = build_llm_provider(
+                    self.base_path, self.base_path / settings.llm_provider_config_path
+                )
+                renderer = PromptRenderer(self.base_path / settings.prompt_manifest_path, base_dir=self.base_path)
+
+            provider_type = (provider_cfg or {}).get("provider")
+            model = None
+            if provider_type == "litellm":
+                model = (provider_cfg or {}).get("litellm", {}).get("model")
+            elif provider_type == "stub":
+                model = "stub"
+
+            self.stats.memory_llm_provider = provider_type
+            self.stats.memory_llm_model = model
+
+            self.memory_llm_provider = provider
+            self.memory_llm_renderer = renderer
+            self.memory_llm_provider_config = provider_cfg or {}
+            self.memory_extractor = LLMMemoryExtractor(
+                provider=provider,
+                renderer=renderer,
+                policy=self.memory_policy or {},
+                max_items=self.memory_max_items,
+                max_chars=max_output_chars,
+                scope_user_enabled=self.memory_scope_user_enabled,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.stats.memory_extract_strategy = "heuristic"
+            self.memory_extract_strategy = "heuristic"
+            self.stats.last_memory_extract_error = str(exc)[:200]
+            logger.warning("Memory LLM extractor init failed: %s", exc)
+
     async def shutdown(self) -> None:
         self._stop.set()
         if self.redis:
@@ -134,6 +194,10 @@ class PersonaWorkerService:
     def _record_memory_error(self, message: str) -> None:
         truncated = (message or "")[:200]
         self.stats.last_memory_error = truncated
+
+    def _record_memory_extract_error(self, message: str) -> None:
+        truncated = (message or "")[:200]
+        self.stats.last_memory_extract_error = truncated
 
     def _memory_inventory(self) -> tuple[int, dict[str, int]]:
         if not self.memory_store:
@@ -165,8 +229,15 @@ class PersonaWorkerService:
             "memory_writes_rejected": self.stats.memory_writes_rejected,
             "memory_writes_redacted": self.stats.memory_writes_redacted,
             "memory_writes_failed": self.stats.memory_writes_failed,
+            "memory_extract_strategy": self.stats.memory_extract_strategy,
+            "memory_llm_provider": self.stats.memory_llm_provider,
+            "memory_llm_model": self.stats.memory_llm_model,
+            "memory_extract_llm_attempted": self.stats.memory_extract_llm_attempted,
+            "memory_extract_llm_succeeded": self.stats.memory_extract_llm_succeeded,
+            "memory_extract_llm_failed": self.stats.memory_extract_llm_failed,
             "last_memory_read_ids": list(self.stats.last_memory_read_ids),
             "last_memory_write_ids": list(self.stats.last_memory_write_ids),
+            "last_memory_extract_error": self.stats.last_memory_extract_error,
             "last_memory_error": self.stats.last_memory_error,
         }
 
@@ -361,57 +432,65 @@ class PersonaWorkerService:
         return True
 
     def _llm_extract(self, payload: dict) -> bool:
-        if not isinstance(self.reply_generator, LLMReplyGenerator):
-            return False
-        try:
-            room_id = payload.get("room_id") or self.room_config.get("room_id", "room:demo")
-            llm_req = LLMRequest(
-                persona_id="memory",
-                persona_display_name="memory",
-                room_id=room_id,
-                content=payload.get("content", ""),
-                recent_messages=[],
-                tags={},
-            )
-            system_prompt, user_prompt = self.reply_generator.render_memory_extract_prompts(llm_req)
-            llm_req.system_prompt = system_prompt
-            llm_req.user_prompt = user_prompt
-            response = self.reply_generator.provider.generate(llm_req)
-            text = response.text.strip()
-            try:
-                parsed = json.loads(text)
-                candidates = parsed if isinstance(parsed, list) else [parsed]
-            except Exception:
-                return False
+        self.stats.memory_extract_llm_attempted += 1
 
-            any_accepted = False
-            for candidate in candidates:
-                if not isinstance(candidate, dict):
-                    continue
-                try:
-                    validate_memory_item_dict(candidate)
-                except Exception:
-                    continue
-                allowed, _ = should_store_item(self.memory_policy or {}, candidate)
-                if not allowed:
-                    self.stats.memory_writes_rejected += 1
-                    continue
-                scope_key = candidate.get("scope_key")
-                if not scope_key:
-                    continue
-                try:
-                    memory_item = MemoryItem.from_dict(candidate)
-                    self.memory_store.upsert(scope_key, memory_item)
-                    any_accepted = True
-                    self.stats.memory_writes_accepted += 1
-                    self.stats.last_memory_write_ids.append(memory_item.id)
-                except Exception:
-                    self.stats.memory_writes_failed += 1
-            return any_accepted
-        except Exception as exc:  # noqa: BLE001
-            self.stats.memory_writes_failed += 1
-            self._record_memory_error(str(exc))
+        if not (self.memory_extractor and self.memory_store):
+            self.stats.memory_extract_llm_failed += 1
+            self._record_memory_extract_error("llm_extractor_unavailable")
             return False
+
+        content = payload.get("content", "") or ""
+        room_id = payload.get("room_id") or self.room_config.get("room_id", "room:demo")
+        persona_id = self._derive_target_persona_id(content)
+        if not persona_id:
+            self.stats.memory_extract_llm_failed += 1
+            self.stats.memory_writes_rejected += 1
+            self._record_memory_extract_error("memory_llm_no_persona")
+            return False
+        room_state = self.state.get_room_state(room_id, self.budget_limit, self.budget_window_ms)
+        recent_messages = [msg.get("content", "") or "" for msg in room_state.recent_messages]
+
+        try:
+            result = self.memory_extractor.extract(
+                content=content,
+                room_id=room_id,
+                persona_id=persona_id,
+                user_id=payload.get("user_id"),
+                display_name=payload.get("display_name"),
+                message_id=payload.get("id"),
+                origin=payload.get("origin"),
+                recent_messages=recent_messages,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.stats.memory_extract_llm_failed += 1
+            self._record_memory_extract_error(str(exc))
+            return False
+
+        if result.error:
+            self._record_memory_extract_error(result.error)
+
+        self.stats.memory_writes_rejected += result.rejected_count
+        self.stats.memory_writes_redacted += result.redacted_count
+
+        any_accepted = False
+        for item in result.accepted_items:
+            try:
+                self.memory_store.upsert(item.scope_key, item)
+                any_accepted = True
+                self.stats.memory_writes_accepted += 1
+                self.stats.last_memory_write_ids.append(item.id)
+            except Exception as exc:  # noqa: BLE001
+                self.stats.memory_writes_failed += 1
+                self._record_memory_error(str(exc))
+
+        if any_accepted:
+            self.stats.memory_extract_llm_succeeded += 1
+            self._record_write_time(room_id, int(time.time() * 1000))
+            self.stats.last_memory_extract_error = None
+        else:
+            self.stats.memory_extract_llm_failed += 1
+
+        return any_accepted
 
     def _maybe_extract_memory(self, payload: dict) -> None:
         if not (self.memory_enabled and self.memory_store and self.memory_policy):
