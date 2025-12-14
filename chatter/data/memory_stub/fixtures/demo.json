@@ -1,0 +1,87 @@
+{
+  "schema_name": "MemoryStubFixtures",
+  "schema_version": "1.0.0",
+  "room_id": "room:demo",
+  "personas": {
+    "ClipGoblin": [
+      {
+        "schema_name": "MemoryItem",
+        "schema_version": "1.0.0",
+        "id": "stub_cg_trait",
+        "ts": "2024-06-01T12:00:00Z",
+        "scope": "persona",
+        "scope_key": "persona:ClipGoblin",
+        "category": "persona_trait",
+        "subject": "clip hunter",
+        "value": "obsessed with grabbing crazy clips for the highlight reel",
+        "confidence": 0.9,
+        "ttl_days": 120,
+        "source": {
+          "kind": "system_seed",
+          "message_id": null,
+          "user_id": null,
+          "origin": "system"
+        }
+      },
+      {
+        "schema_name": "MemoryItem",
+        "schema_version": "1.0.0",
+        "id": "stub_cg_joke",
+        "ts": "2024-06-02T15:00:00Z",
+        "scope": "persona_room",
+        "scope_key": "persona_room:room:demo:ClipGoblin",
+        "category": "running_joke",
+        "subject": "clip tax",
+        "value": "claims a clip tax whenever someone posts a massive play",
+        "confidence": 0.76,
+        "ttl_days": 60,
+        "source": {
+          "kind": "chat_message",
+          "message_id": "cg_msg_01",
+          "user_id": "viewer123",
+          "origin": "human"
+        }
+      }
+    ],
+    "LoreMaster3000": [
+      {
+        "schema_name": "MemoryItem",
+        "schema_version": "1.0.0",
+        "id": "stub_lore_fact",
+        "ts": "2024-06-03T10:00:00Z",
+        "scope": "persona",
+        "scope_key": "persona:LoreMaster3000",
+        "category": "room_lore",
+        "subject": "demo lore",
+        "value": "keeps a tidy archive of every running gag in the demo room",
+        "confidence": 0.83,
+        "ttl_days": 90,
+        "source": {
+          "kind": "manual",
+          "message_id": null,
+          "user_id": "mod42",
+          "origin": "system"
+        }
+      },
+      {
+        "schema_name": "MemoryItem",
+        "schema_version": "1.0.0",
+        "id": "stub_lore_relation",
+        "ts": "2024-06-04T09:15:00Z",
+        "scope": "persona_user",
+        "scope_key": "persona_user:room:demo:LoreMaster3000:user789",
+        "category": "relationship",
+        "subject": "lore buddy",
+        "value": "trades lore snippets with longtime chatter user789",
+        "confidence": 0.7,
+        "ttl_days": 75,
+        "source": {
+          "kind": "chat_message",
+          "message_id": "lm_msg_01",
+          "user_id": "user789",
+          "origin": "human"
+        }
+      }
+    ]
+  }
+}

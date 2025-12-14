@@ -1,0 +1,19 @@
+{
+  "schema_name": "MemoryItem",
+  "schema_version": "1.0.0",
+  "id": "bad_newline",
+  "ts": "2024-05-04T12:00:00Z",
+  "scope": "persona",
+  "scope_key": "persona:ClipGoblin",
+  "category": "persona_trait",
+  "subject": "newline subject",
+  "value": "contains a newline\nnot allowed",
+  "confidence": 0.5,
+  "ttl_days": 30,
+  "source": {
+    "kind": "system_seed",
+    "message_id": null,
+    "user_id": null,
+    "origin": "system"
+  }
+}
