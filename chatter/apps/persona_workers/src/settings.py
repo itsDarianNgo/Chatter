@@ -55,6 +55,11 @@ class Settings:
     memory_max_chars: int = int(_env("MEMORY_MAX_CHARS", "800"))
     memory_extract_strategy: str = _env("MEMORY_EXTRACT_STRATEGY", "heuristic")
     memory_scope_user_enabled: bool = _env("MEMORY_SCOPE_USER_ENABLED", "false").lower() == "true"
+    mem0_api_key: str | None = _env("MEM0_API_KEY")
+    mem0_base_url: str = _env("MEM0_BASE_URL", "https://api.mem0.ai")
+    mem0_org_id: str | None = _env("MEM0_ORG_ID")
+    mem0_project_id: str | None = _env("MEM0_PROJECT_ID")
+    mem0_timeout_s: int = int(_env("MEM0_TIMEOUT_S", "10"))
 
     max_recent_messages_per_room: int = int(_env("MAX_RECENT_MESSAGES_PER_ROOM", "50"))
     dedupe_cache_size: int = int(_env("DEDUPE_CACHE_SIZE", "1000"))
