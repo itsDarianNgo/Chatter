@@ -17,14 +17,6 @@ COPY pyproject.toml ./
 EXPOSE 8090
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD python - <<'PY'
-import sys
-import urllib.request
-try:
-    with urllib.request.urlopen('http://localhost:8090/healthz', timeout=2) as resp:
-        sys.exit(0 if resp.status == 200 else 1)
-except Exception:
-    sys.exit(1)
-PY
+  CMD python -c "import sys,urllib.request; url='http://127.0.0.1:8090/healthz'; try: urllib.request.urlopen(url,timeout=3); except Exception: sys.exit(1); sys.exit(0)"
 
 CMD ["python", "-m", "apps.persona_workers.src.main"]
