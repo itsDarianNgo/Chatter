@@ -9,6 +9,15 @@ from typing import Any, Dict
 logger = logging.getLogger(__name__)
 
 
+def _normalize_base_url(base_url: str) -> str:
+    trimmed = base_url.rstrip("/")
+    for suffix in ("/v1", "/v2"):
+        if trimmed.endswith(suffix):
+            trimmed = trimmed[: -len(suffix)]
+            trimmed = trimmed.rstrip("/")
+    return trimmed or base_url.rstrip("/")
+
+
 class Mem0Client:
     def __init__(
         self,
@@ -19,7 +28,10 @@ class Mem0Client:
         project_id: str | None = None,
     ) -> None:
         self.api_key = api_key
-        self.base_url = base_url.rstrip("/")
+        self.base_url = _normalize_base_url(base_url)
+        self.add_url = f"{self.base_url}/v1/memories/"
+        self.search_url = f"{self.base_url}/v2/memories/search"
+        self.delete_url_prefix = f"{self.base_url}/v1/memories/"
         self.timeout_s = timeout_s
         self.org_id = org_id
         self.project_id = project_id
@@ -28,6 +40,7 @@ class Mem0Client:
         return {
             "Authorization": f"Token {self.api_key}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
         }
 
     def _request(self, method: str, url: str, payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
@@ -53,16 +66,14 @@ class Mem0Client:
         return enriched
 
     def add_memory(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}/v1/memories/"
-        return self._request("POST", url, self._enrich_payload(payload))
+        return self._request("POST", self.add_url, self._enrich_payload(payload))
 
     def search_memories(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.base_url}/v2/memories/search"
-        return self._request("POST", url, self._enrich_payload(payload))
+        return self._request("POST", self.search_url, self._enrich_payload(payload))
 
     def delete_memory(self, memory_id: str) -> None:
-        url = f"{self.base_url}/v1/memories/{memory_id}"
+        url = f"{self.delete_url_prefix}{memory_id}"
         self._request("DELETE", url, None)
 
 
-__all__ = ["Mem0Client"]
+__all__ = ["Mem0Client", "_normalize_base_url"]
