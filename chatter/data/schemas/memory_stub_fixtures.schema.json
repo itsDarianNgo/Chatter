@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Memory Stub Fixtures",
+  "type": "object",
+  "properties": {
+    "schema_name": { "const": "MemoryStubFixtures" },
+    "schema_version": { "const": "1.0.0" },
+    "room_id": { "type": "string" },
+    "personas": {
+      "type": "object",
+      "patternProperties": {
+        ".+": {
+          "type": "array",
+          "items": { "$ref": "memory_item.schema.json" },
+          "minItems": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_name", "schema_version", "room_id", "personas"],
+  "additionalProperties": false
+}

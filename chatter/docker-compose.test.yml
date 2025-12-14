@@ -1,0 +1,13 @@
+services:
+  persona_workers:
+    environment:
+      GENERATION_MODE: stub
+      LLM_PROVIDER_CONFIG_PATH: configs/llm/providers/stub.json
+      PROMPT_MANIFEST_PATH: prompts/manifest.json
+      MEMORY_ENABLED: "true"
+      MEMORY_BACKEND: stub
+      MEMORY_POLICY_PATH: configs/memory/default_policy.json
+      MEMORY_FIXTURES_PATH: data/memory_stub/fixtures/demo.json
+      MEMORY_EXTRACT_STRATEGY: heuristic
+      MEMORY_MAX_ITEMS: 5
+      MEMORY_MAX_CHARS: 800

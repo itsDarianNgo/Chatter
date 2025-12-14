@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   redis:
     image: redis:7-alpine
@@ -10,6 +8,8 @@ services:
     build:
       context: .
       dockerfile: apps/chat_gateway/Dockerfile
+    env_file:
+      - .env.example
     environment:
       REDIS_URL: redis://redis:6379/0
       INGEST_STREAM: stream:chat.ingest
@@ -22,6 +22,29 @@ services:
       - "8080:8080"
     depends_on:
       - redis
+
+  persona_workers:
+    build:
+      context: .
+      dockerfile: apps/persona_workers/Dockerfile
+    env_file:
+      - .env.example
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      FIREHOSE_STREAM: stream:chat.firehose
+      INGEST_STREAM: stream:chat.ingest
+      ROOM_CONFIG_PATH: configs/rooms/demo.json
+      PERSONA_CONFIG_DIR: configs/personas
+      HTTP_PORT: 8090
+      LOG_LEVEL: INFO
+    volumes:
+      - ./:/app:ro
+    ports:
+      - "8090:8090"
+    depends_on:
+      - redis
+      - chat_gateway
+    restart: unless-stopped
 
   web_ui:
     image: nginx:alpine

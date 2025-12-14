@@ -1,0 +1,17 @@
+# llm_runtime
+
+Interfaces and validation helpers for deterministic LLM behavior in CI. Milestone 3A introduces a stub provider plus prompt and memory artifacts that can be validated without reaching external models. Milestone 3B layers in a LiteLLM provider option for live calls when configured.
+
+## Components
+- `LLMProvider` protocol and request/response types
+- `StubLLMProvider` for fixture-driven deterministic replies
+- `LiteLLMProvider` for opt-in live completions via LiteLLM (API key env required)
+- Loaders and validators for provider config, memory policy, prompt manifests, and stub fixtures
+
+To exercise LiteLLM, supply a provider config (e.g., `configs/llm/providers/litellm.example.json`), export the configured API key environment variable, and choose `GENERATION_MODE=litellm` in the persona worker. For deterministic CI paths, use `GENERATION_MODE=stub`.
+
+## Fixture key strategy
+The stub provider can key responses by `persona_id` and marker prefix (e.g., `ClipGoblin::E2E_TEST_`). When a marker is present in the request, the provider reduces it to a stable prefix and looks up a matching case, falling back to persona defaults and the configured default response.
+
+## Prompt manifest validation
+Use `prompt_loader` to load and verify the manifest, ensure prompt files exist, and enforce sha256 digests so accidental edits are detected.

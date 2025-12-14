@@ -1,0 +1,22 @@
+{
+  "schema_name": "MemoryItem",
+  "schema_version": "1.0.0",
+  "id": "mem_joke_001",
+  "ts": "2024-05-03T18:45:00Z",
+  "scope": "persona_user",
+  "scope_key": "persona_user:room:demo:ClipGoblin:user123",
+  "category": "running_joke",
+  "subject": "clip tax",
+  "value": "collects a \"clip tax\" every time someone posts a wild highlight",
+  "confidence": 0.77,
+  "ttl_days": 45,
+  "source": {
+    "kind": "manual",
+    "message_id": null,
+    "user_id": "moderator1",
+    "origin": "system"
+  },
+  "tags": {
+    "joke": true
+  }
+}
