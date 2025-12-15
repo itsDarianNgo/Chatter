@@ -57,6 +57,7 @@ class Settings:
     memory_scope_user_enabled: bool = _env("MEMORY_SCOPE_USER_ENABLED", "false").lower() == "true"
     mem0_api_key: str | None = _env("MEM0_API_KEY")
     mem0_base_url: str = _env("MEM0_BASE_URL", "https://api.mem0.ai")
+    mem0_app_id: str | None = _env("MEM0_APP_ID")
     mem0_org_id: str | None = _env("MEM0_ORG_ID")
     mem0_project_id: str | None = _env("MEM0_PROJECT_ID")
     mem0_timeout_s: int = int(_env("MEM0_TIMEOUT_S", "10"))

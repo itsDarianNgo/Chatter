@@ -32,7 +32,81 @@ def _bucket_key_from_scope(scope_key: str) -> str:
         return parts[-1]
     if prefix == "persona_user" and len(parts) >= 2:
         return parts[-2]
+    if prefix == "room":
+        if len(parts) >= 4:
+            return parts[-2]
+        if len(parts) >= 3:
+            return parts[-1]
     return scope_key
+
+
+def _identifiers_from_scope_key(scope_key: str) -> Dict[str, str]:
+    raw = (scope_key or "").strip()
+    if not raw:
+        return {}
+
+    parts = raw.split(":")
+    if not parts:
+        return {}
+
+    prefix = parts[0]
+    if prefix == "persona" and len(parts) >= 2:
+        persona_id = ":".join(parts[1:]).strip()
+        if persona_id:
+            return {"agent_id": persona_id}
+        return {"user_id": raw}
+
+    if prefix == "persona_room" and len(parts) >= 3:
+        room_id = ":".join(parts[1:-1]).strip()
+        persona_id = (parts[-1] or "").strip()
+        identifiers: Dict[str, str] = {}
+        if persona_id:
+            identifiers["agent_id"] = persona_id
+        if room_id:
+            identifiers["run_id"] = room_id
+        return identifiers or {"user_id": raw}
+
+    if prefix == "persona_user" and len(parts) >= 4:
+        room_id = ":".join(parts[1:-2]).strip()
+        persona_id = (parts[-2] or "").strip()
+        user_id = (parts[-1] or "").strip()
+        identifiers = {}
+        if user_id:
+            identifiers["user_id"] = user_id
+        if persona_id:
+            identifiers["agent_id"] = persona_id
+        if room_id:
+            identifiers["run_id"] = room_id
+        return identifiers or {"user_id": raw}
+
+    # Legacy (pre-prefixed) scope keys.
+    if prefix == "room" and len(parts) >= 3:
+        if len(parts) >= 4:
+            room_id = ":".join(parts[:-2]).strip()
+            persona_id = (parts[-2] or "").strip()
+            user_id = (parts[-1] or "").strip()
+            identifiers = {}
+            if user_id:
+                identifiers["user_id"] = user_id
+            if persona_id:
+                identifiers["agent_id"] = persona_id
+            if room_id:
+                identifiers["run_id"] = room_id
+            return identifiers or {"user_id": raw}
+
+        room_id = ":".join(parts[:-1]).strip()
+        persona_id = (parts[-1] or "").strip()
+        identifiers = {}
+        if persona_id:
+            identifiers["agent_id"] = persona_id
+        if room_id:
+            identifiers["run_id"] = room_id
+        return identifiers or {"user_id": raw}
+
+    if ":" not in raw:
+        return {"agent_id": raw}
+
+    return {"user_id": raw}
 
 
 class Mem0MemoryStore(MemoryStore):
@@ -89,11 +163,11 @@ class Mem0MemoryStore(MemoryStore):
         return MemoryItem.from_dict(payload)
 
     def search(self, scope_key: str, query: str, limit: int = 5) -> MemoryQueryResult:
-        payload = {
-            "query": query,
-            "filters": {"user_id": scope_key},
-            "limit": min(limit, self.max_items),
-        }
+        identifiers = _identifiers_from_scope_key(scope_key)
+        if not identifiers:
+            raise ValueError("mem0_scope_key_invalid: cannot derive identifiers")
+
+        payload = {"query": query, "limit": min(limit, self.max_items), **identifiers}
         response = self.client.search_memories(payload)
         results = response.get("results") or response.get("data") or []
         items: List[MemoryItem] = []
@@ -112,6 +186,10 @@ class Mem0MemoryStore(MemoryStore):
         if item.scope_key != scope_key:
             raise ValueError("scope_key_mismatch")
 
+        identifiers = _identifiers_from_scope_key(scope_key)
+        if not identifiers:
+            raise ValueError("mem0_scope_key_invalid: cannot derive identifiers")
+
         metadata = {
             "scope": item.scope,
             "scope_key": item.scope_key,
@@ -127,13 +205,7 @@ class Mem0MemoryStore(MemoryStore):
         if item.redactions:
             metadata["redactions"] = item.redactions
 
-        payload = {
-            "user_id": scope_key,
-            "messages": [{"role": "user", "content": item.value}],
-            "infer": False,
-            "async_mode": False,
-            "metadata": metadata,
-        }
+        payload = {"messages": [{"role": "user", "content": item.value}], "infer": False, "async_mode": False, "metadata": metadata, **identifiers}
         response = self.client.add_memory(payload)
         created_id = response.get("id") or response.get("memory_id")
         bucket_key = _bucket_key_from_scope(scope_key)

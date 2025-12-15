@@ -130,6 +130,7 @@ class PersonaWorkerService:
                     api_key=settings.mem0_api_key,
                     base_url=settings.mem0_base_url,
                     timeout_s=settings.mem0_timeout_s,
+                    app_id=settings.mem0_app_id or None,
                     org_id=settings.mem0_org_id or None,
                     project_id=settings.mem0_project_id or None,
                 )
@@ -303,10 +304,10 @@ class PersonaWorkerService:
             scope = "persona"
 
         if scope == "persona_user":
-            return scope, f"{room_id}:{persona_id}:{user_id}"
+            return scope, f"persona_user:{room_id}:{persona_id}:{user_id}"
         if scope == "persona":
-            return scope, persona_id
-        return scope, f"{room_id}:{persona_id}"
+            return scope, f"persona:{persona_id}"
+        return scope, f"persona_room:{room_id}:{persona_id}"
 
     def _build_memory_context(self, persona_id: str, room_id: str, content: str) -> tuple[str, list[str]]:
         if not (self.memory_enabled and self.memory_store and self.memory_policy):
@@ -316,7 +317,7 @@ class PersonaWorkerService:
         try:
             policy_scopes = self.memory_policy.get("scopes") if isinstance(self.memory_policy, dict) else []
             scope_room, scope_room_key = self._build_scope(self.memory_policy or {}, room_id, persona_id, None)
-            scope_persona_key = persona_id if policy_scopes and "persona" in policy_scopes else None
+            scope_persona_key = f"persona:{persona_id}" if policy_scopes and "persona" in policy_scopes else None
             scope_keys: list[str] = []
             if scope_room_key:
                 scope_keys.append(scope_room_key)

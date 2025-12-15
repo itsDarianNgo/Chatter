@@ -42,7 +42,7 @@
 - Memory remains disabled by default; the compose test overlay enables the stub memory backend and fixtures. Tweak `MEMORY_ENABLED`, `MEMORY_BACKEND`, `MEMORY_POLICY_PATH`, and `MEMORY_FIXTURES_PATH` in a local `.env` to experiment without affecting CI.
 - Memory extraction strategies: `MEMORY_EXTRACT_STRATEGY` supports `heuristic` (default) and `llm`. The latter renders the memory extract prompt and calls the configured LLM provider.
 - Deterministic LLM extraction (stub provider) can be exercised via `npm run compose:test:e2e:memory:llm`.
-- A Mem0 backend is available for local smoke testing: set `MEMORY_ENABLED=true`, `MEMORY_BACKEND=mem0`, and `MEM0_API_KEY` (plus optional `MEM0_ORG_ID`/`MEM0_PROJECT_ID`) in a local `.env`, then run `npm run test:mem0:smoke` (skips cleanly when no key is present).
+- A Mem0 backend is available for local smoke testing: set `MEMORY_ENABLED=true`, `MEMORY_BACKEND=mem0`, and `MEM0_API_KEY` (plus optional `MEM0_APP_ID`, `MEM0_ORG_ID`, `MEM0_PROJECT_ID`) in a local `.env`, then run `npm run test:mem0:smoke` (skips cleanly when no key is present). Mem0 requires at least one identifier (`app_id`/`user_id`/`agent_id`/`run_id`); adds send them top-level and searches send them under `filters`. Chatter derives these from scope keys and the smoke test has defaults (override via `MEM0_SMOKE_*`).
 
 ## Core event channels (conceptual)
 - `stream.context` — rolling “what’s happening on stream”
