@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/schemas/stream_frame.v1.schema.json",
+  "title": "StreamFrame",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "id",
+    "ts",
+    "room_id",
+    "frame_path",
+    "sha256",
+    "width",
+    "height",
+    "format",
+    "source",
+    "seq"
+  ],
+  "properties": {
+    "schema_name": { "const": "StreamFrame" },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver-like schema version (e.g., 1.0.0)."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128,
+      "description": "Stable id from the producer."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp (ISO-8601)."
+    },
+    "room_id": {
+      "type": "string",
+      "pattern": "^room:[A-Za-z0-9._-]{1,128}$",
+      "description": "Room scope identifier."
+    },
+    "frame_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Path to frame image on disk (container path or repo-relative)."
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$",
+      "description": "SHA256 digest of the file bytes (hex)."
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "format": {
+      "type": "string",
+      "enum": ["png", "jpg", "jpeg", "webp"]
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Producer/source label (e.g., fixture, host_capture)."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic sequence per room/source."
+    },
+    "capture_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optional capture time in milliseconds."
+    },
+    "meta": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "Optional producer metadata."
+    }
+  },
+  "examples": [
+    {
+      "schema_name": "StreamFrame",
+      "schema_version": "1.0.0",
+      "id": "frame_fixture_1",
+      "ts": "2025-12-14T00:00:00.000Z",
+      "room_id": "room:demo",
+      "frame_path": "/app/fixtures/stream/frame_fixture_1.png",
+      "sha256": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+      "width": 1,
+      "height": 1,
+      "format": "png",
+      "source": "fixture",
+      "seq": 1,
+      "capture_ms": 0
+    }
+  ]
+}
+

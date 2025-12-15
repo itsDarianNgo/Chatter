@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/schemas/stream_transcript_segment.v1.schema.json",
+  "title": "StreamTranscriptSegment",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "id",
+    "ts",
+    "room_id",
+    "start_ms",
+    "end_ms",
+    "text"
+  ],
+  "properties": {
+    "schema_name": { "const": "StreamTranscriptSegment" },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver-like schema version (e.g., 1.0.0)."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp (ISO-8601)."
+    },
+    "room_id": {
+      "type": "string",
+      "pattern": "^room:[A-Za-z0-9._-]{1,128}$"
+    },
+    "start_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "end_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "meta": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "Optional ASR metadata."
+    }
+  },
+  "examples": [
+    {
+      "schema_name": "StreamTranscriptSegment",
+      "schema_version": "1.0.0",
+      "id": "seg_fixture_1",
+      "ts": "2025-12-14T00:00:00.000Z",
+      "room_id": "room:demo",
+      "start_ms": 0,
+      "end_ms": 1200,
+      "text": "E2E_TEST_STREAM: dragon appears!!! @ClipGoblin",
+      "confidence": 0.98
+    }
+  ]
+}
+

@@ -46,3 +46,6 @@ restart_persona_workers
 
 # 4) Policy probe (cooldown/budget/bot_origin tagging)
 npm run test:e2e:policy
+
+# 5) Stream perception (frames + transcripts -> observations)
+npm run test:e2e:stream

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict
 
@@ -37,6 +39,11 @@ def _is_memory_extract(req: LLMRequest) -> bool:
     return "MEMORY EXTRACTION REQUEST" in haystack
 
 
+def _is_stream_observation(req: LLMRequest) -> bool:
+    haystack = "\n".join([req.system_prompt or "", req.user_prompt or ""])
+    return "STREAM OBSERVATION REQUEST" in haystack
+
+
 def _build_memory_extract_response(req: LLMRequest) -> str:
     content = req.content or ""
     match = re.search(r"streamer is called\s+([A-Za-z0-9_()\-]+)", content, flags=re.IGNORECASE)
@@ -54,6 +61,124 @@ def _build_memory_extract_response(req: LLMRequest) -> str:
         "source": {"kind": "chat_message", "message_id": None, "user_id": None, "origin": "human"},
     }
     return json.dumps([item], ensure_ascii=False)
+
+
+def _extract_payload_json(user_prompt: str) -> Dict | None:
+    marker = "PAYLOAD_JSON:"
+    if marker not in (user_prompt or ""):
+        return None
+    raw = user_prompt.split(marker, 1)[1].strip()
+    if not raw:
+        return None
+    try:
+        payload = json.loads(raw)
+    except Exception:  # noqa: BLE001
+        return None
+    if isinstance(payload, dict):
+        return payload
+    return None
+
+
+def _iso_from_epoch_ms(value: int) -> str:
+    dt = datetime.fromtimestamp(value / 1000.0, tz=timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
+
+
+def _build_stream_observation_response(req: LLMRequest) -> str:
+    payload = _extract_payload_json(req.user_prompt or "") or {}
+    frame = payload.get("frame") if isinstance(payload.get("frame"), dict) else {}
+    transcripts = payload.get("transcripts") if isinstance(payload.get("transcripts"), list) else []
+    prompt_id = payload.get("prompt_id") if isinstance(payload.get("prompt_id"), str) else "stream_observation_v1"
+    prompt_sha256 = payload.get("prompt_sha256") if isinstance(payload.get("prompt_sha256"), str) else ""
+
+    trace_template = payload.get("trace_template")
+    trace: dict = dict(trace_template) if isinstance(trace_template, dict) else {}
+    trace.setdefault("provider", "stub")
+    trace.setdefault("model", "stub")
+    trace.setdefault("latency_ms", 1)
+    trace.setdefault("prompt_id", prompt_id)
+    trace.setdefault("prompt_sha256", prompt_sha256)
+
+    frame_id = frame.get("id") if isinstance(frame.get("id"), str) else "frame"
+    room_id = frame.get("room_id") if isinstance(frame.get("room_id"), str) else (req.room_id or "room:demo")
+    ts_value = frame.get("ts")
+    if isinstance(ts_value, int):
+        ts = _iso_from_epoch_ms(ts_value)
+    elif isinstance(ts_value, str):
+        ts = ts_value
+    else:
+        ts = "2024-01-01T00:00:00Z"
+
+    frame_sha = frame.get("sha256") if isinstance(frame.get("sha256"), str) else ""
+
+    ordered_segments: list[dict] = []
+    for seg in transcripts:
+        if isinstance(seg, dict):
+            ordered_segments.append(seg)
+
+    transcript_ids: list[str] = []
+    transcript_texts: list[str] = []
+    for seg in ordered_segments:
+        seg_id = seg.get("id")
+        if isinstance(seg_id, str) and seg_id:
+            transcript_ids.append(seg_id)
+        text = seg.get("text")
+        if isinstance(text, str) and text.strip():
+            transcript_texts.append(text.strip())
+
+    combined_text = " ".join(transcript_texts).strip()
+    if not combined_text:
+        combined_text = (req.content or "").strip()
+
+    safe_summary = re.sub(r"\s+", " ", combined_text.replace("\n", " ").replace("\r", " ")).strip()
+    if len(safe_summary) > 512:
+        safe_summary = safe_summary[:511] + "."
+
+    mentions = re.findall(r"@([A-Za-z0-9_]{1,64})", combined_text)
+    entities: list[str] = []
+    for mention in mentions:
+        if mention and mention not in entities:
+            entities.append(mention)
+
+    exclamations = combined_text.count("!")
+    hype_level = min(1.0, round(exclamations / 5.0, 2))
+
+    tags: list[str] = []
+    if "E2E_TEST_STREAM" in combined_text:
+        tags.append("e2e")
+    if "dragon" in combined_text.lower():
+        tags.append("dragon")
+    if exclamations > 0:
+        tags.append("hype")
+    if entities:
+        tags.append("mentions")
+
+    obs_seed = f"{frame_id}:{','.join(transcript_ids)}"
+    obs_id = "obs_" + hashlib.sha256(obs_seed.encode("utf-8")).hexdigest()[:16]
+
+    observation = {
+        "schema_name": "StreamObservation",
+        "schema_version": "1.0.0",
+        "id": obs_id,
+        "ts": ts,
+        "room_id": room_id,
+        "frame_id": frame_id,
+        "frame_sha256": frame_sha,
+        "transcript_ids": transcript_ids,
+        "summary": safe_summary or "(no transcript)",
+        "tags": tags,
+        "entities": entities,
+        "hype_level": hype_level,
+        "safety": {
+            "sexual_content": False,
+            "violence": False,
+            "self_harm": False,
+            "hate": False,
+            "harassment": False,
+        },
+        "trace": trace,
+    }
+    return json.dumps(observation, ensure_ascii=False, separators=(",", ":"))
 
 
 class StubLLMProvider(LLMProvider):
@@ -98,9 +223,12 @@ class StubLLMProvider(LLMProvider):
         return self.default_response
 
     def generate(self, req: LLMRequest) -> LLMResponse:
+        if _is_stream_observation(req):
+            text = _build_stream_observation_response(req)
+            return LLMResponse(text=text, provider=self.provider_name, model="stub", meta={"mode": "stream_observation"})
+
         if _is_memory_extract(req):
             text = _build_memory_extract_response(req)
-            text = _clean_text(text, self.max_output_chars)
             return LLMResponse(text=text, provider=self.provider_name, model="stub", meta={"mode": "memory_extract"})
 
         key = self._resolve_key(req)

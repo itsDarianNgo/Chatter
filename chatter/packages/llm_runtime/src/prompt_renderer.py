@@ -10,7 +10,7 @@ from .types import LLMRequest
 
 
 class PromptRenderer:
-    """Render prompts using the manifest for persona replies.
+    """Render prompts using the manifest.
 
     Ensures prompt files exist and match recorded digests before rendering.
     """
@@ -23,6 +23,7 @@ class PromptRenderer:
         verify_sha256(self.manifest, self.base_dir)
         self.persona_prompt = self._load_prompt_text("persona_reply")
         self.memory_extract_prompt = self._load_prompt_text("memory_extract")
+        self.stream_observation_prompt = self._load_prompt_text("stream_observation")
 
     def _load_prompt_text(self, purpose: str) -> str:
         for prompt in self.manifest.get("prompts", []):
@@ -72,3 +73,10 @@ class PromptRenderer:
             f"PAYLOAD_JSON:\n{json.dumps(payload, ensure_ascii=False)}"
         )
         return self.memory_extract_prompt, user_prompt
+
+    def render_stream_observation(self, payload: dict) -> Tuple[str, str]:
+        user_prompt = (
+            "STREAM OBSERVATION REQUEST\n"
+            f"PAYLOAD_JSON:\n{json.dumps(payload, ensure_ascii=False, sort_keys=True)}"
+        )
+        return self.stream_observation_prompt, user_prompt

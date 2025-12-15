@@ -11,3 +11,13 @@ services:
       MEMORY_EXTRACT_STRATEGY: heuristic
       MEMORY_MAX_ITEMS: 5
       MEMORY_MAX_CHARS: 800
+
+  stream_perceptor:
+    environment:
+      GENERATION_MODE: stub
+      LLM_PROVIDER_CONFIG_PATH: configs/llm/providers/stub.json
+      PROMPT_MANIFEST_PATH: prompts/manifest.json
+      STREAM_FRAMES_KEY: stream:frames
+      STREAM_TRANSCRIPTS_KEY: stream:transcripts
+      STREAM_OBSERVATIONS_KEY: stream:observations
+      LOG_LEVEL: INFO

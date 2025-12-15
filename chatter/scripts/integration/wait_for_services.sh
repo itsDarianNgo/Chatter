@@ -5,6 +5,7 @@ TIMEOUT_S=${TIMEOUT_S:-45}
 SLEEP_S=${SLEEP_S:-0.5}
 GATEWAY_URL=${GATEWAY_URL:-http://localhost:8080/healthz}
 PERSONA_URL=${PERSONA_URL:-http://localhost:8090/healthz}
+STREAM_PERCEPTOR_URL=${STREAM_PERCEPTOR_URL:-http://localhost:8100/healthz}
 
 start=$(date +%s)
 
@@ -26,3 +27,4 @@ wait_for() {
 
 wait_for "$GATEWAY_URL" "gateway"
 wait_for "$PERSONA_URL" "persona_workers"
+wait_for "$STREAM_PERCEPTOR_URL" "stream_perceptor"

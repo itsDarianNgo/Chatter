@@ -22,6 +22,18 @@ const schemaMap = {
     repoRoot,
     "packages/protocol/jsonschema/trends_snapshot.schema.json"
   ),
+  StreamFrame: path.join(
+    repoRoot,
+    "packages/protocol/jsonschema/stream_frame.v1.schema.json"
+  ),
+  StreamTranscriptSegment: path.join(
+    repoRoot,
+    "packages/protocol/jsonschema/stream_transcript_segment.v1.schema.json"
+  ),
+  StreamObservation: path.join(
+    repoRoot,
+    "packages/protocol/jsonschema/stream_observation.v1.schema.json"
+  ),
 };
 
 const parseArgs = () => {

@@ -11,7 +11,7 @@
         "type": "object",
         "properties": {
           "id": { "type": "string" },
-          "purpose": { "enum": ["persona_reply", "memory_extract", "memory_summarize"] },
+          "purpose": { "enum": ["persona_reply", "memory_extract", "memory_summarize", "stream_observation"] },
           "version": { "type": "string" },
           "path": { "type": "string" },
           "sha256": {

@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/schemas/stream_observation.v1.schema.json",
+  "title": "StreamObservation",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "id",
+    "ts",
+    "room_id",
+    "frame_id",
+    "frame_sha256",
+    "transcript_ids",
+    "summary",
+    "tags",
+    "entities",
+    "hype_level",
+    "safety",
+    "trace"
+  ],
+  "properties": {
+    "schema_name": { "const": "StreamObservation" },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver-like schema version (e.g., 1.0.0)."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp (ISO-8601)."
+    },
+    "room_id": {
+      "type": "string",
+      "pattern": "^room:[A-Za-z0-9._-]{1,128}$"
+    },
+    "frame_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "frame_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "transcript_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 },
+      "maxItems": 256
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Short human-readable summary."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "maxItems": 64
+    },
+    "entities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "maxItems": 64
+    },
+    "hype_level": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "safety": { "$ref": "#/$defs/SafetyFlags" },
+    "trace": { "$ref": "#/$defs/ObservationTrace" },
+    "meta": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "Optional producer metadata."
+    }
+  },
+  "$defs": {
+    "SafetyFlags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sexual_content", "violence", "self_harm", "hate", "harassment"],
+      "properties": {
+        "sexual_content": { "type": "boolean" },
+        "violence": { "type": "boolean" },
+        "self_harm": { "type": "boolean" },
+        "hate": { "type": "boolean" },
+        "harassment": { "type": "boolean" }
+      }
+    },
+    "ObservationTrace": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["provider", "model", "latency_ms", "prompt_id", "prompt_sha256"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "latency_ms": { "type": "integer", "minimum": 0 },
+        "prompt_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "prompt_sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_name": "StreamObservation",
+      "schema_version": "1.0.0",
+      "id": "obs_7c9e17c1c9f14a8f",
+      "ts": "2025-12-14T00:00:00.000Z",
+      "room_id": "room:demo",
+      "frame_id": "frame_fixture_1",
+      "frame_sha256": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+      "transcript_ids": ["seg_fixture_1"],
+      "summary": "E2E_TEST_STREAM: dragon appears!!! @ClipGoblin",
+      "tags": ["e2e", "dragon", "hype"],
+      "entities": ["ClipGoblin"],
+      "hype_level": 0.6,
+      "safety": {
+        "sexual_content": false,
+        "violence": false,
+        "self_harm": false,
+        "hate": false,
+        "harassment": false
+      },
+      "trace": {
+        "provider": "stub",
+        "model": "stub",
+        "latency_ms": 1,
+        "prompt_id": "stream_observation_v1",
+        "prompt_sha256": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+      }
+    }
+  ]
+}
+

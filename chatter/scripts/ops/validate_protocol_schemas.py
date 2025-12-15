@@ -115,6 +115,9 @@ def build_schema_map(repo_root: Path) -> SchemaConfig:
         "StreamContext": repo_root / "packages/protocol/jsonschema/stream_context.schema.json",
         "ChatMessage": repo_root / "packages/protocol/jsonschema/chat_message.schema.json",
         "TrendsSnapshot": repo_root / "packages/protocol/jsonschema/trends_snapshot.schema.json",
+        "StreamFrame": repo_root / "packages/protocol/jsonschema/stream_frame.v1.schema.json",
+        "StreamTranscriptSegment": repo_root / "packages/protocol/jsonschema/stream_transcript_segment.v1.schema.json",
+        "StreamObservation": repo_root / "packages/protocol/jsonschema/stream_observation.v1.schema.json",
     }
 
 
@@ -122,7 +125,14 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate protocol schemas and fixtures")
     parser.add_argument(
         "--only",
-        choices=["StreamContext", "ChatMessage", "TrendsSnapshot"],
+        choices=[
+            "StreamContext",
+            "ChatMessage",
+            "TrendsSnapshot",
+            "StreamFrame",
+            "StreamTranscriptSegment",
+            "StreamObservation",
+        ],
         help="Validate a single schema by name",
     )
     parser.add_argument(

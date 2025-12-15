@@ -28,6 +28,15 @@
       "sha256": "de0472f48fd1136d776f3547ff31455d017e8d657ce805d6f70f1f5a295da799",
       "input_vars": ["persona_id", "persona_name", "memory_items"],
       "output_contract": { "type": "text", "notes": "Single line memory recap" }
+    },
+    {
+      "id": "stream_observation_v1",
+      "purpose": "stream_observation",
+      "version": "1.0.0",
+      "path": "prompts/stream/observation_v1.md",
+      "sha256": "7985cd217e98ec59af2656a87cc171e0fb5ee631b29c3431d389ede1ebe75520",
+      "input_vars": ["frame", "transcripts", "trace_template"],
+      "output_contract": { "type": "json", "notes": "StreamObservation event JSON" }
     }
   ]
 }

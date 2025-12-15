@@ -46,6 +46,29 @@ services:
       - chat_gateway
     restart: unless-stopped
 
+  stream_perceptor:
+    build:
+      context: .
+      dockerfile: apps/stream_perceptor/Dockerfile
+    env_file:
+      - .env.example
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      HTTP_PORT: 8100
+      STREAM_FRAMES_KEY: stream:frames
+      STREAM_TRANSCRIPTS_KEY: stream:transcripts
+      STREAM_OBSERVATIONS_KEY: stream:observations
+      PROMPT_MANIFEST_PATH: prompts/manifest.json
+      LLM_PROVIDER_CONFIG_PATH: configs/llm/providers/stub.json
+      LOG_LEVEL: INFO
+    volumes:
+      - ./:/app:ro
+    ports:
+      - "8100:8100"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
   web_ui:
     image: nginx:alpine
     volumes:
