@@ -44,6 +44,7 @@ class PromptRenderer:
         recent_block = self._format_recent(req.recent_messages)
         policy_tags = json.dumps(req.tags or {}, sort_keys=True)
         memory_block = req.memory_context or "None"
+        observation_block = req.observation_context or "None"
         user_prompt = (
             f"persona: {req.persona_display_name}\n"
             f"room: {req.room_id}\n"
@@ -52,6 +53,8 @@ class PromptRenderer:
             f"{req.content}\n"
             "RECENT_CHAT:\n"
             f"{recent_block}\n"
+            "STREAM_OBSERVATIONS:\n"
+            f"{observation_block}\n"
             "MEMORY_CONTEXT:\n"
             f"{memory_block}"
         )

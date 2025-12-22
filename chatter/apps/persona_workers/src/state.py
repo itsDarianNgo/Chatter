@@ -4,6 +4,13 @@ from typing import Deque, Dict, List, Optional
 
 
 @dataclass
+class ObservationEntry:
+    redis_id: str
+    ts_ms: int
+    observation: dict
+
+
+@dataclass
 class RoomState:
     room_id: str
     max_recent: int
@@ -83,6 +90,7 @@ class State:
         self.dedupe_cache: "OrderedDict[str, None]" = OrderedDict()
         self.rooms: Dict[str, RoomState] = {}
         self.persona_stats: Dict[str, PersonaStats] = {}
+        self.observations: Dict[str, List[ObservationEntry]] = {}
 
     def get_room_state(self, room_id: str, budget_limit: int, budget_window_ms: int) -> RoomState:
         if room_id not in self.rooms:
@@ -121,6 +129,35 @@ class State:
     def get_room_rate_10s(self, room_id: str, now_ms: int, budget_limit: int, budget_window_ms: int) -> int:
         room_state = self.get_room_state(room_id, budget_limit, budget_window_ms)
         return room_state.rate_10s(now_ms)
+
+    def add_observation(
+        self, room_id: str, entry: ObservationEntry, now_ms: int, max_age_ms: int, max_items: int
+    ) -> int:
+        entries = self.observations.setdefault(room_id, [])
+        entries.append(entry)
+        return self.prune_observations(room_id, now_ms, max_age_ms, max_items)
+
+    def prune_observations(self, room_id: str, now_ms: int, max_age_ms: int, max_items: int) -> int:
+        entries = self.observations.get(room_id, [])
+        if not entries:
+            return 0
+        threshold = now_ms - max_age_ms
+        kept = [entry for entry in entries if entry.ts_ms >= threshold]
+        dropped_old = len(entries) - len(kept)
+        kept.sort(key=lambda entry: (entry.ts_ms, entry.redis_id))
+        if max_items > 0 and len(kept) > max_items:
+            kept = kept[-max_items:]
+        self.observations[room_id] = kept
+        return dropped_old
+
+    def get_recent_observations(
+        self, room_id: str, now_ms: int, max_age_ms: int, max_items: int
+    ) -> List[ObservationEntry]:
+        self.prune_observations(room_id, now_ms, max_age_ms, max_items)
+        return list(self.observations.get(room_id, []))
+
+    def observations_total(self) -> int:
+        return sum(len(entries) for entries in self.observations.values())
 
 
 RuntimeState = State
@@ -164,6 +201,13 @@ class Stats:
     last_memory_read_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=10))
     last_memory_write_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=10))
     last_memory_error: str | None = None
+    observations_received: int = 0
+    observations_valid: int = 0
+    observations_invalid: int = 0
+    observations_dropped_old: int = 0
+    observations_buffered_total: int = 0
+    observations_used_in_prompts: int = 0
+    observations_chars_included: int = 0
 
     def record_decision(self, persona_id: str, reason: str, tags: Optional[dict] = None) -> None:
         tags = tags or {}
@@ -221,4 +265,11 @@ class Stats:
             "last_memory_write_ids": list(self.last_memory_write_ids),
             "last_memory_extract_error": self.last_memory_extract_error,
             "last_memory_error": self.last_memory_error,
+            "observations_received": self.observations_received,
+            "observations_valid": self.observations_valid,
+            "observations_invalid": self.observations_invalid,
+            "observations_dropped_old": self.observations_dropped_old,
+            "observations_buffered_total": self.observations_buffered_total,
+            "observations_used_in_prompts": self.observations_used_in_prompts,
+            "observations_chars_included": self.observations_chars_included,
         }

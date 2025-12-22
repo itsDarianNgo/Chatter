@@ -43,6 +43,33 @@ def _sanitize_echo(content: str) -> str:
     return " ".join(words[:3])
 
 
+def _extract_observation_snippet(context: str) -> str:
+    if not context:
+        return ""
+    for line in context.splitlines():
+        candidate = line.strip()
+        if not candidate.startswith("- "):
+            continue
+        candidate = candidate[2:].strip()
+        if candidate.startswith("["):
+            closing = candidate.find("]")
+            if closing != -1:
+                candidate = candidate[closing + 1 :].strip()
+        tag_idx = candidate.find(" (tags:")
+        if tag_idx != -1:
+            candidate = candidate[:tag_idx].strip()
+        return candidate
+    return ""
+
+
+def _append_observation_snippet(base: str, context: str, max_chars: int) -> str:
+    snippet = _extract_observation_snippet(context)
+    if not snippet:
+        return base
+    combined = f"{base} | obs: {snippet}".strip()
+    return truncate(combined, max_chars)
+
+
 def _maybe_add_emote(base: str, persona_id: str, event_id: str, room_cfg: dict, max_chars: int) -> str:
     emote_list = room_cfg.get("emote_policy", {}).get("allowed_emotes") or DEFAULT_EMOTES
     idx_seed = f"{event_id}:{persona_id}:emote"
@@ -69,7 +96,14 @@ class DeterministicReplyGenerator:
         }
 
     def generate_reply(
-        self, persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict, memory_context: str | None = None
+        self,
+        persona_cfg: Dict,
+        room_cfg: dict,
+        event_msg: Dict,
+        state,
+        tags: Dict,
+        memory_context: str | None = None,
+        observation_context: str | None = None,
     ) -> str:
         persona_id = persona_cfg.get("persona_id", "persona")
         content = event_msg.get("content", "") or ""
@@ -99,6 +133,9 @@ class DeterministicReplyGenerator:
 
             reply = base_reply
             reply = _maybe_add_emote(reply, persona_id, event_id, room_cfg, max_chars)
+
+        if observation_context:
+            reply = _append_observation_snippet(reply, observation_context, max_chars)
 
         reply = strip_mentions(reply)
         reply = sanitize_text(reply)
@@ -144,7 +181,14 @@ class LLMReplyGenerator:
         return [msg.get("content", "") or "" for msg in room_state.recent_messages]
 
     def generate_reply(
-        self, persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict, memory_context: str | None = None
+        self,
+        persona_cfg: Dict,
+        room_cfg: dict,
+        event_msg: Dict,
+        state,
+        tags: Dict,
+        memory_context: str | None = None,
+        observation_context: str | None = None,
     ) -> str:
         persona_id = persona_cfg.get("persona_id", "persona")
         display_name = persona_cfg.get("display_name", persona_id)
@@ -166,6 +210,7 @@ class LLMReplyGenerator:
             recent_messages=recent,
             tags=tags or {},
             memory_context=memory_context or "",
+            observation_context=observation_context or "",
         )
         system_prompt, user_prompt = self.renderer.render_persona_reply(llm_req)
         llm_req.system_prompt = system_prompt
@@ -195,9 +240,17 @@ _default_generator = DeterministicReplyGenerator()
 
 
 def generate_reply(
-    persona_cfg: Dict, room_cfg: dict, event_msg: Dict, state, tags: Dict, memory_context: str | None = None
+    persona_cfg: Dict,
+    room_cfg: dict,
+    event_msg: Dict,
+    state,
+    tags: Dict,
+    memory_context: str | None = None,
+    observation_context: str | None = None,
 ) -> str:
-    return _default_generator.generate_reply(persona_cfg, room_cfg, event_msg, state, tags, memory_context)
+    return _default_generator.generate_reply(
+        persona_cfg, room_cfg, event_msg, state, tags, memory_context, observation_context
+    )
 
 
 def build_llm_provider(base_path: Path, provider_config_path: Path):

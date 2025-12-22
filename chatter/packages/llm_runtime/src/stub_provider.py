@@ -34,6 +34,42 @@ def _marker_prefix(marker: str) -> str:
     return marker[:16]
 
 
+def _extract_observation_snippet(context: str) -> str:
+    if not context:
+        return ""
+    for line in context.splitlines():
+        candidate = line.strip()
+        if not candidate.startswith("- "):
+            continue
+        candidate = candidate[2:].strip()
+        if candidate.startswith("["):
+            closing = candidate.find("]")
+            if closing != -1:
+                candidate = candidate[closing + 1 :].strip()
+        tag_idx = candidate.find(" (tags:")
+        if tag_idx != -1:
+            candidate = candidate[:tag_idx].strip()
+        return candidate
+    return ""
+
+
+def _append_observation_snippet(base: str, context: str, max_chars: int) -> str:
+    snippet = _extract_observation_snippet(context)
+    if not snippet:
+        return base
+    suffix = f" obs: {snippet}"
+    if len(base) >= max_chars:
+        return base[:max_chars]
+    remaining = max_chars - len(base)
+    if remaining <= 0:
+        return base
+    if len(suffix) > remaining:
+        if remaining <= 1:
+            return base
+        suffix = suffix[: remaining - 1] + "."
+    return base + suffix
+
+
 def _is_memory_extract(req: LLMRequest) -> bool:
     haystack = "\n".join([req.system_prompt or "", req.user_prompt or ""])
     return "MEMORY EXTRACTION REQUEST" in haystack
@@ -234,4 +270,6 @@ class StubLLMProvider(LLMProvider):
         key = self._resolve_key(req)
         raw = self._lookup_response(key)
         text = _clean_text(raw, self.max_output_chars)
+        if req.observation_context:
+            text = _append_observation_snippet(text, req.observation_context, self.max_output_chars)
         return LLMResponse(text=text, provider=self.provider_name, model=None, meta={"key": key})

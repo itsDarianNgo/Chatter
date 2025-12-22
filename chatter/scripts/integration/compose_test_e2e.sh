@@ -49,3 +49,9 @@ npm run test:e2e:policy
 
 # 5) Stream perception (frames + transcripts -> observations)
 npm run test:e2e:stream
+
+# Reset persona state so observation buffer is clean for reactivity.
+restart_persona_workers
+
+# 6) Reactivity (observations -> persona replies)
+npm run test:e2e:reactivity

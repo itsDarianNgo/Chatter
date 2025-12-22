@@ -14,6 +14,7 @@ class LLMRequest:
     recent_messages: List[str] = field(default_factory=list)
     tags: Dict[str, object] = field(default_factory=dict)
     memory_context: str = ""
+    observation_context: str = ""
     system_prompt: str = ""
     user_prompt: str = ""
 

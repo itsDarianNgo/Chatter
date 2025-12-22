@@ -25,6 +25,7 @@
     "test:e2e:policy": "bash scripts/integration/e2e_policy_probe_test.sh",
     "test:e2e:policy:ps": "powershell -ExecutionPolicy Bypass -File scripts\\integration\\e2e_policy_probe_test.ps1",
     "test:e2e:stream": "node scripts/e2e/test_stream.mjs",
+    "test:e2e:reactivity": "node scripts/e2e/test_reactivity.mjs",
     "test:e2e:memory": "bash scripts/integration/e2e_memory_test.sh",
     "test:e2e:memory:llm": "bash scripts/integration/e2e_memory_llm_test.sh",
     "test:e2e:memory:ps": "powershell -ExecutionPolicy Bypass -File scripts\\integration\\e2e_memory_test.ps1",
@@ -32,7 +33,9 @@
     "compose:test:e2e": "bash scripts/integration/compose_test_e2e.sh",
     "compose:test:e2e:memory:llm": "bash scripts/integration/compose_test_memory_llm.sh",
     "test:llm:smoke": "python scripts/integration/litellm_smoke.py",
-    "test:mem0:smoke": "python scripts/integration/mem0_smoke.py"
+    "test:mem0:smoke": "python scripts/integration/mem0_smoke.py",
+    "test:vision:smoke": "python scripts/integration/vision_smoke.py",
+    "test:asr:smoke": "python scripts/integration/asr_smoke.py"
   },
   "dependencies": {
     "ajv": "^8.17.1",

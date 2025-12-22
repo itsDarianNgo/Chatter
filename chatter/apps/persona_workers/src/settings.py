@@ -31,6 +31,7 @@ class Settings:
     redis_url: str = _env("REDIS_URL", "redis://localhost:6379/0")
     firehose_stream: str = _env("FIREHOSE_STREAM", "stream:chat.firehose")
     ingest_stream: str = _env("INGEST_STREAM", "stream:chat.ingest")
+    stream_observations_key: str = _env("STREAM_OBSERVATIONS_KEY", "stream:observations")
     consumer_group: str = _env("CONSUMER_GROUP", "persona_workers")
     consumer_name: str = _env("CONSUMER_NAME", socket.gethostname())
     room_config_path: str = _env("ROOM_CONFIG_PATH", "configs/rooms/demo.json")
@@ -41,6 +42,9 @@ class Settings:
     prompt_manifest_path: str = _env("PROMPT_MANIFEST_PATH", "prompts/manifest.json")
     schema_chat_message_path: str = _env(
         "SCHEMA_CHAT_MESSAGE_PATH", "packages/protocol/jsonschema/chat_message.schema.json"
+    )
+    schema_stream_observation_path: str = _env(
+        "SCHEMA_STREAM_OBSERVATION_PATH", "packages/protocol/jsonschema/stream_observation.v1.schema.json"
     )
     schema_room_path: str = _env("SCHEMA_ROOM_PATH", "configs/schemas/room.schema.json")
     schema_persona_path: str = _env("SCHEMA_PERSONA_PATH", "configs/schemas/persona.schema.json")
@@ -67,6 +71,10 @@ class Settings:
     max_react_age_s: float = float(_env("MAX_REACT_AGE_S", "20"))
     persona_cooldown_ms_default: int = int(_env("PERSONA_COOLDOWN_MS_DEFAULT", "1500"))
     room_bot_budget_per_10s_default: int = int(_env("ROOM_BOT_BUDGET_PER_10S_DEFAULT", "5"))
+
+    obs_context_max_items: int = int(_env("OBS_CONTEXT_MAX_ITEMS", "5"))
+    obs_context_max_age_ms: int = int(_env("OBS_CONTEXT_MAX_AGE_MS", "120000"))
+    obs_context_max_chars: int = int(_env("OBS_CONTEXT_MAX_CHARS", "1200"))
 
 
 def load_settings() -> Settings:
