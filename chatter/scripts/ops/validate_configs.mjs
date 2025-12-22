@@ -13,12 +13,16 @@ const schemaMap = {
   persona: path.join(repoRoot, "configs/schemas/persona.schema.json"),
   room: path.join(repoRoot, "configs/schemas/room.schema.json"),
   moderation: path.join(repoRoot, "configs/schemas/moderation.schema.json"),
+  observation_context: path.join(repoRoot, "configs/schemas/observation_context.schema.json"),
 };
 
 const fixtureMap = {
   persona: [{ directory: path.join(repoRoot, "configs/personas"), expectValid: true }],
   room: [{ directory: path.join(repoRoot, "configs/rooms"), expectValid: true }],
   moderation: [{ directory: path.join(repoRoot, "configs/moderation"), expectValid: true }],
+  observation_context: [
+    { directory: path.join(repoRoot, "configs/observation_context"), expectValid: true },
+  ],
 };
 
 const parseArgs = () => {

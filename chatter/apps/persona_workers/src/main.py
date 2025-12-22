@@ -27,6 +27,11 @@ from packages.llm_runtime.src import LLMRequest, PromptRenderer
 from .bus_redis_streams import ack, connect, ensure_consumer_group, read_messages
 from .config_loader import ConfigLoader
 from .generator import LLMReplyGenerator, build_llm_provider, build_reply_generator
+from .observation_context import (
+    derive_observation_ts_ms,
+    format_observation_context,
+    load_observation_context_config,
+)
 from .policy import PolicyEngine, ts_ms_from_event
 from .publisher import publish_chat_message
 from .settings import settings
@@ -73,9 +78,16 @@ class PersonaWorkerService:
             settings.llm_provider_config_path,
             settings.prompt_manifest_path,
         )
-        self.obs_context_max_items = settings.obs_context_max_items
-        self.obs_context_max_age_ms = settings.obs_context_max_age_ms
-        self.obs_context_max_chars = settings.obs_context_max_chars
+        self.obs_context_config_path = (base_path / settings.obs_context_config_path).resolve()
+        self.obs_context_config = load_observation_context_config(
+            self.obs_context_config_path, base_path / settings.schema_observation_context_path
+        )
+        self.stats.obs_context_config_path = str(self.obs_context_config_path)
+        self.stats.obs_context_max_items = self.obs_context_config.max_items
+        self.stats.obs_context_max_age_ms = self.obs_context_config.max_age_ms
+        self.stats.obs_context_max_chars = self.obs_context_config.max_chars
+        self.stats.obs_context_prefix = self.obs_context_config.prefix
+        self.stats.obs_context_format_version = self.obs_context_config.format_version
         self.memory_enabled = settings.memory_enabled
         self.memory_backend = None
         self.memory_policy = None
@@ -604,26 +616,8 @@ class PersonaWorkerService:
             for redis_id, raw in messages:
                 await self._handle_observation(redis_id, raw)
 
-    def _format_observation_line(self, observation: dict) -> str:
-        ts_label = observation.get("ts") or "unknown"
-        summary = observation.get("summary", "") or ""
-        summary_clean = " ".join(str(summary).replace("\n", " ").replace("\r", " ").split()).strip()
-        tags = observation.get("tags") if isinstance(observation.get("tags"), list) else []
-        entities = observation.get("entities") if isinstance(observation.get("entities"), list) else []
-        tags_text = ", ".join(str(tag) for tag in tags) if tags else "none"
-        entities_text = ", ".join(str(ent) for ent in entities) if entities else "none"
-        hype_value = observation.get("hype_level")
-        if isinstance(hype_value, (int, float)):
-            hype_text = f"{float(hype_value):.2f}"
-        else:
-            hype_text = "0.00"
-        return (
-            f"- [{ts_label}] {summary_clean} "
-            f"(tags: {tags_text}, entities: {entities_text}, hype: {hype_text})"
-        )
-
     @staticmethod
-    def _truncate_context(text: str, max_chars: int) -> str:
+    def _truncate_preview(text: str, max_chars: int = 200) -> str:
         if max_chars <= 0:
             return ""
         if len(text) <= max_chars:
@@ -632,23 +626,28 @@ class PersonaWorkerService:
             return text[:max_chars]
         return text[: max_chars - 3] + "..."
 
-    def _build_observation_context(self, room_id: str) -> str:
-        now_ms = int(time.time() * 1000)
+    def _record_observation_usage(self, context_text: str, obs_ids: list[str], chars_included: int) -> None:
+        self.stats.observations_last_used_ids.clear()
+        limit = self.stats.observations_last_used_ids.maxlen or len(obs_ids)
+        for obs_id in obs_ids[:limit]:
+            self.stats.observations_last_used_ids.append(obs_id)
+        self.stats.observations_last_used_count = len(obs_ids)
+        self.stats.observations_last_used_chars = chars_included
+        if context_text:
+            self.stats.observations_last_context_preview = self._truncate_preview(context_text, 200)
+        else:
+            self.stats.observations_last_context_preview = None
+
+    def _build_observation_context(self, room_id: str, reference_ts_ms: int):
+        config = self.obs_context_config
         dropped_old = self.state.prune_observations(
-            room_id, now_ms, self.obs_context_max_age_ms, self.obs_context_max_items
+            room_id, reference_ts_ms, config.max_age_ms, config.max_items
         )
         if dropped_old:
             self.stats.observations_dropped_old += dropped_old
         self.stats.observations_buffered_total = self.state.observations_total()
-        entries = self.state.get_recent_observations(
-            room_id, now_ms, self.obs_context_max_age_ms, self.obs_context_max_items
-        )
-        if not entries:
-            return ""
-        lines = [self._format_observation_line(entry.observation) for entry in reversed(entries)]
-        header = "Recent stream observations (most recent first):"
-        block = f"{header}\n" + "\n".join(lines)
-        return self._truncate_context(block, self.obs_context_max_chars)
+        entries = list(self.state.observations.get(room_id, []))
+        return format_observation_context(entries, room_id, reference_ts_ms, config)
 
     async def _handle_message(self, redis_id: str, raw_data: str) -> None:
         assert self.redis is not None
@@ -684,7 +683,7 @@ class PersonaWorkerService:
 
             self._maybe_extract_memory(payload)
 
-            obs_context: str | None = None
+            obs_context_result = None
             for persona_id, persona in self.personas.items():
                 decision, reason, tags = self.policy_engine.should_speak(persona_id, payload)
                 tags = tags or {}
@@ -699,8 +698,9 @@ class PersonaWorkerService:
                     elif reason == "bot_origin":
                         self.stats.messages_suppressed_bot_origin += 1
                     continue
-                if obs_context is None:
-                    obs_context = self._build_observation_context(room_id)
+                if obs_context_result is None:
+                    obs_context_result = self._build_observation_context(room_id, ts_ms)
+                obs_context_text = obs_context_result.context_text if obs_context_result else ""
                 memory_context, _ = self._build_memory_context(persona_id, room_id, payload.get("content", ""))
                 content = self.reply_generator.generate_reply(
                     persona,
@@ -709,11 +709,16 @@ class PersonaWorkerService:
                     self.state,
                     tags,
                     memory_context=memory_context,
-                    observation_context=obs_context or "",
+                    observation_context=obs_context_text,
                 )
-                if obs_context:
+                if obs_context_text:
                     self.stats.observations_used_in_prompts += 1
-                    self.stats.observations_chars_included += len(obs_context)
+                    self.stats.observations_chars_included += obs_context_result.chars_included
+                    self._record_observation_usage(
+                        obs_context_text,
+                        obs_context_result.included_observation_ids,
+                        obs_context_result.chars_included,
+                    )
                 published = await publish_chat_message(
                     self.redis,
                     settings.ingest_stream,
@@ -753,14 +758,13 @@ class PersonaWorkerService:
                 return
             self.stats.observations_valid += 1
             room_id = payload.get("room_id") or self.room_config.get("room_id", "room:demo")
-            ts_ms = ts_ms_from_event(payload)
-            now_ms = int(time.time() * 1000)
+            ts_ms = derive_observation_ts_ms(payload, redis_id, fallback_ms=int(time.time() * 1000))
             dropped_old = self.state.add_observation(
                 room_id,
                 ObservationEntry(redis_id=redis_id, ts_ms=ts_ms, observation=payload),
-                now_ms,
-                self.obs_context_max_age_ms,
-                self.obs_context_max_items,
+                ts_ms,
+                self.obs_context_config.max_age_ms,
+                self.obs_context_config.max_items,
             )
             if dropped_old:
                 self.stats.observations_dropped_old += dropped_old

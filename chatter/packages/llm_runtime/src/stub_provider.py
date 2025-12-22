@@ -37,18 +37,16 @@ def _marker_prefix(marker: str) -> str:
 def _extract_observation_snippet(context: str) -> str:
     if not context:
         return ""
-    for line in context.splitlines():
-        candidate = line.strip()
-        if not candidate.startswith("- "):
-            continue
-        candidate = candidate[2:].strip()
-        if candidate.startswith("["):
-            closing = candidate.find("]")
-            if closing != -1:
-                candidate = candidate[closing + 1 :].strip()
-        tag_idx = candidate.find(" (tags:")
-        if tag_idx != -1:
-            candidate = candidate[:tag_idx].strip()
+    lines = [line.strip() for line in context.splitlines() if line.strip()]
+    for idx, line in enumerate(lines):
+        if idx == 0 and len(lines) > 1:
+            if "OBS:" not in line and "|" not in line and "tags=" not in line and "entities=" not in line and "hype=" not in line:
+                continue
+        candidate = line
+        if " | " in candidate:
+            parts = [part.strip() for part in candidate.split(" | ") if part.strip()]
+            if len(parts) >= 2:
+                candidate = " | ".join(parts[:2])
         return candidate
     return ""
 

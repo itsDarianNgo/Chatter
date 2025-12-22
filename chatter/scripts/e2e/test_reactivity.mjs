@@ -24,6 +24,7 @@ const FIREHOSE_STREAM = env("FIREHOSE_STREAM", "stream:chat.firehose");
 
 const PERSONA_STATS_URL = env("PERSONA_STATS_URL", "http://localhost:8090/stats");
 const E2E_ROOM_ID = env("E2E_ROOM_ID", "");
+const E2E_OBS_PREFIX = env("E2E_OBS_PREFIX", "OBS:");
 
 const FIXTURE_HOST_PATH = path.join(repoRoot, "fixtures/stream/frame_fixture_1.png");
 const FIXTURE_CONTAINER_PATH = "/app/fixtures/stream/frame_fixture_1.png";
@@ -344,8 +345,7 @@ const waitForBotReply = async ({ redis, group, consumer, roomId }) => {
         if (msg.origin !== "bot") continue;
 
         const content = String(msg.content || "");
-        const contentLower = content.toLowerCase();
-        if (content.includes("E2E_REACTIVITY_OBS") || contentLower.includes("lava rises")) {
+        if (content.includes(E2E_OBS_PREFIX) && content.includes("E2E_REACTIVITY_OBS")) {
           return msg;
         }
       }

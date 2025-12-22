@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/config-schemas/observation_context.schema.json",
+  "title": "ObservationContextConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "max_items",
+    "max_age_ms",
+    "max_chars",
+    "include_tags",
+    "include_entities",
+    "include_hype",
+    "include_ts",
+    "format_version",
+    "prefix",
+    "header",
+    "line_template",
+    "truncate_suffix"
+  ],
+  "properties": {
+    "max_items": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "default": 5
+    },
+    "max_age_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3600000,
+      "default": 120000
+    },
+    "max_chars": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "default": 1200
+    },
+    "include_tags": { "type": "boolean", "default": true },
+    "include_entities": { "type": "boolean", "default": true },
+    "include_hype": { "type": "boolean", "default": true },
+    "include_ts": { "type": "boolean", "default": true },
+    "format_version": { "type": "string", "enum": ["v1"], "default": "v1" },
+    "prefix": { "type": "string", "maxLength": 64, "default": "OBS:" },
+    "header": {
+      "type": "string",
+      "maxLength": 256,
+      "default": "Recent stream observations:"
+    },
+    "line_template": {
+      "type": "string",
+      "maxLength": 512,
+      "default": "{prefix}{ts}{summary}{tags}{entities}{hype}"
+    },
+    "truncate_suffix": { "type": "string", "maxLength": 16, "default": "…" }
+  }
+}

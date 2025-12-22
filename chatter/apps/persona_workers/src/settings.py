@@ -48,6 +48,9 @@ class Settings:
     )
     schema_room_path: str = _env("SCHEMA_ROOM_PATH", "configs/schemas/room.schema.json")
     schema_persona_path: str = _env("SCHEMA_PERSONA_PATH", "configs/schemas/persona.schema.json")
+    schema_observation_context_path: str = _env(
+        "SCHEMA_OBSERVATION_CONTEXT_PATH", "configs/schemas/observation_context.schema.json"
+    )
     http_port: int = int(_env("HTTP_PORT", "8090"))
     log_level: str = _env("LOG_LEVEL", "INFO")
 
@@ -71,10 +74,9 @@ class Settings:
     max_react_age_s: float = float(_env("MAX_REACT_AGE_S", "20"))
     persona_cooldown_ms_default: int = int(_env("PERSONA_COOLDOWN_MS_DEFAULT", "1500"))
     room_bot_budget_per_10s_default: int = int(_env("ROOM_BOT_BUDGET_PER_10S_DEFAULT", "5"))
-
-    obs_context_max_items: int = int(_env("OBS_CONTEXT_MAX_ITEMS", "5"))
-    obs_context_max_age_ms: int = int(_env("OBS_CONTEXT_MAX_AGE_MS", "120000"))
-    obs_context_max_chars: int = int(_env("OBS_CONTEXT_MAX_CHARS", "1200"))
+    obs_context_config_path: str = _env(
+        "OBS_CONTEXT_CONFIG_PATH", "/app/configs/observation_context/default.json"
+    )
 
 
 def load_settings() -> Settings:

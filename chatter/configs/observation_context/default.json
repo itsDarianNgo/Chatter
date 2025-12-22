@@ -1,0 +1,14 @@
+{
+  "max_items": 5,
+  "max_age_ms": 120000,
+  "max_chars": 1200,
+  "include_tags": true,
+  "include_entities": true,
+  "include_hype": true,
+  "include_ts": true,
+  "format_version": "v1",
+  "prefix": "OBS:",
+  "header": "Recent stream observations:",
+  "line_template": "{prefix}{ts}{summary}{tags}{entities}{hype}",
+  "truncate_suffix": "…"
+}

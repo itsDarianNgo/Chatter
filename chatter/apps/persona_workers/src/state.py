@@ -208,6 +208,16 @@ class Stats:
     observations_buffered_total: int = 0
     observations_used_in_prompts: int = 0
     observations_chars_included: int = 0
+    observations_last_used_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=5))
+    observations_last_used_count: int = 0
+    observations_last_used_chars: int = 0
+    observations_last_context_preview: str | None = None
+    obs_context_config_path: str | None = None
+    obs_context_max_items: int | None = None
+    obs_context_max_age_ms: int | None = None
+    obs_context_max_chars: int | None = None
+    obs_context_prefix: str | None = None
+    obs_context_format_version: str | None = None
 
     def record_decision(self, persona_id: str, reason: str, tags: Optional[dict] = None) -> None:
         tags = tags or {}
@@ -272,4 +282,14 @@ class Stats:
             "observations_buffered_total": self.observations_buffered_total,
             "observations_used_in_prompts": self.observations_used_in_prompts,
             "observations_chars_included": self.observations_chars_included,
+            "observations_last_used_ids": list(self.observations_last_used_ids),
+            "observations_last_used_count": self.observations_last_used_count,
+            "observations_last_used_chars": self.observations_last_used_chars,
+            "observations_last_context_preview": self.observations_last_context_preview,
+            "obs_context_config_path": self.obs_context_config_path,
+            "obs_context_max_items": self.obs_context_max_items,
+            "obs_context_max_age_ms": self.obs_context_max_age_ms,
+            "obs_context_max_chars": self.obs_context_max_chars,
+            "obs_context_prefix": self.obs_context_prefix,
+            "obs_context_format_version": self.obs_context_format_version,
         }

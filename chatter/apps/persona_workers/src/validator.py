@@ -21,3 +21,7 @@ class ChatMessageValidator(JSONSchemaValidator):
 
 class StreamObservationValidator(JSONSchemaValidator):
     pass
+
+
+class ObservationContextValidator(JSONSchemaValidator):
+    pass
