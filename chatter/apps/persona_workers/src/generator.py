@@ -43,7 +43,7 @@ def _sanitize_echo(content: str) -> str:
     return " ".join(words[:3])
 
 
-def _extract_observation_snippet(context: str) -> str:
+def _extract_observation_summary(context: str) -> str:
     if not context:
         return ""
     lines = [line.strip() for line in context.splitlines() if line.strip()]
@@ -52,20 +52,77 @@ def _extract_observation_snippet(context: str) -> str:
             if "OBS:" not in line and "|" not in line and "tags=" not in line and "entities=" not in line and "hype=" not in line:
                 continue
         candidate = line
-        if " | " in candidate:
-            parts = [part.strip() for part in candidate.split(" | ") if part.strip()]
-            if len(parts) >= 2:
-                candidate = " | ".join(parts[:2])
-        return candidate
+        if candidate.lower().startswith("obs:"):
+            candidate = candidate[4:].strip()
+        parts = [part.strip() for part in candidate.split(" | ") if part.strip()]
+        for part in parts:
+            lower = part.lower()
+            if lower.startswith(("tags=", "entities=", "hype=")):
+                continue
+            if re.match(r"^\d{4}-\d{2}-\d{2}t", lower):
+                continue
+            return part
     return ""
 
 
-def _append_observation_snippet(base: str, context: str, max_chars: int) -> str:
-    snippet = _extract_observation_snippet(context)
-    if not snippet:
-        return base
-    combined = f"{base} | obs: {snippet}".strip()
-    return truncate(combined, max_chars)
+def _build_persona_profile(persona_cfg: Dict) -> str:
+    lines: list[str] = []
+    anchor = persona_cfg.get("anchor") if isinstance(persona_cfg, dict) else None
+    if isinstance(anchor, dict):
+        bio = anchor.get("bio")
+        if isinstance(bio, str) and bio.strip():
+            lines.append(f"bio: {sanitize_text(bio)}")
+
+        voice_rules = anchor.get("voice_rules") if isinstance(anchor.get("voice_rules"), dict) else {}
+        if isinstance(voice_rules, dict):
+            for key in ("style", "caps_style", "punctuation", "emoji_density"):
+                value = voice_rules.get(key)
+                if isinstance(value, str) and value.strip():
+                    lines.append(f"{key}: {sanitize_text(value)}")
+
+            for key in ("emote_habits", "catchphrase_seeds", "banned_topics"):
+                items = voice_rules.get(key) if isinstance(voice_rules.get(key), list) else []
+                cleaned = [sanitize_text(str(item)) for item in items if str(item).strip()]
+                if cleaned:
+                    lines.append(f"{key}: {', '.join(cleaned)}")
+
+        catchphrases = anchor.get("catchphrases") if isinstance(anchor.get("catchphrases"), list) else []
+        cleaned_phrases = [sanitize_text(str(item)) for item in catchphrases if str(item).strip()]
+        if cleaned_phrases:
+            lines.append(f"catchphrases: {', '.join(cleaned_phrases)}")
+
+    return "\n".join(lines)
+
+
+def format_auto_commentary_reply(
+    base_reply: str,
+    observation_summary: str,
+    observation_context: str,
+    message_prefix: str,
+    include_obs_id: bool,
+    observation_id: str | None,
+    max_chars: int,
+) -> str:
+    if max_chars <= 0:
+        return ""
+    prefix = sanitize_text(message_prefix or "")
+    summary = sanitize_text(observation_summary or "")
+    obs_id_segment = f"[{observation_id}]" if include_obs_id and observation_id else ""
+    base_reply = sanitize_text(base_reply or "")
+    core = base_reply or summary
+    if not core:
+        fallback = _extract_observation_summary(observation_context)
+        core = sanitize_text(fallback) if fallback else ""
+
+    core_parts = [part for part in (prefix, obs_id_segment, core) if part]
+    combined = " ".join(core_parts)
+
+    combined = strip_mentions(combined)
+    combined = sanitize_text(combined)
+    combined = truncate(combined, max_chars)
+    if not combined:
+        combined = truncate(prefix or "ok", max_chars)
+    return combined
 
 
 def _maybe_add_emote(base: str, persona_id: str, event_id: str, room_cfg: dict, max_chars: int) -> str:
@@ -102,6 +159,9 @@ class DeterministicReplyGenerator:
         tags: Dict,
         memory_context: str | None = None,
         observation_context: str | None = None,
+        observation_summary: str | None = None,
+        prompt_id: str | None = None,
+        prompt_purpose: str | None = None,
     ) -> str:
         persona_id = persona_cfg.get("persona_id", "persona")
         content = event_msg.get("content", "") or ""
@@ -131,9 +191,6 @@ class DeterministicReplyGenerator:
 
             reply = base_reply
             reply = _maybe_add_emote(reply, persona_id, event_id, room_cfg, max_chars)
-
-        if observation_context:
-            reply = _append_observation_snippet(reply, observation_context, max_chars)
 
         reply = strip_mentions(reply)
         reply = sanitize_text(reply)
@@ -187,6 +244,9 @@ class LLMReplyGenerator:
         tags: Dict,
         memory_context: str | None = None,
         observation_context: str | None = None,
+        observation_summary: str | None = None,
+        prompt_id: str | None = None,
+        prompt_purpose: str | None = None,
     ) -> str:
         persona_id = persona_cfg.get("persona_id", "persona")
         display_name = persona_cfg.get("display_name", persona_id)
@@ -198,6 +258,8 @@ class LLMReplyGenerator:
         budget_limit = int(timing.get("max_bot_msgs_per_10s", settings.room_bot_budget_per_10s_default))
         budget_window_ms = 10_000
         recent = self._recent_messages(state, room_id, budget_limit, budget_window_ms)
+        persona_profile = _build_persona_profile(persona_cfg)
+        obs_summary = observation_summary or _extract_observation_summary(observation_context or "")
 
         llm_req = LLMRequest(
             persona_id=persona_id,
@@ -209,8 +271,14 @@ class LLMReplyGenerator:
             tags=tags or {},
             memory_context=memory_context or "",
             observation_context=observation_context or "",
+            observation_summary=obs_summary,
+            persona_profile=persona_profile,
+            prompt_id=prompt_id,
         )
-        system_prompt, user_prompt = self.renderer.render_persona_reply(llm_req)
+        if (prompt_purpose or "persona_reply") == "persona_auto_commentary":
+            system_prompt, user_prompt = self.renderer.render_persona_auto_commentary(llm_req, prompt_id=prompt_id)
+        else:
+            system_prompt, user_prompt = self.renderer.render_persona_reply(llm_req, prompt_id=prompt_id)
         llm_req.system_prompt = system_prompt
         llm_req.user_prompt = user_prompt
 
@@ -245,9 +313,21 @@ def generate_reply(
     tags: Dict,
     memory_context: str | None = None,
     observation_context: str | None = None,
+    observation_summary: str | None = None,
+    prompt_id: str | None = None,
+    prompt_purpose: str | None = None,
 ) -> str:
     return _default_generator.generate_reply(
-        persona_cfg, room_cfg, event_msg, state, tags, memory_context, observation_context
+        persona_cfg,
+        room_cfg,
+        event_msg,
+        state,
+        tags,
+        memory_context,
+        observation_context,
+        observation_summary,
+        prompt_id,
+        prompt_purpose,
     )
 
 

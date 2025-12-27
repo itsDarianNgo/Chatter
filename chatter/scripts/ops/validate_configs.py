@@ -93,6 +93,7 @@ def build_schema_map(repo_root: Path) -> SchemaConfig:
         "room": repo_root / "configs/schemas/room.schema.json",
         "moderation": repo_root / "configs/schemas/moderation.schema.json",
         "observation_context": repo_root / "configs/schemas/observation_context.schema.json",
+        "auto_commentary": repo_root / "configs/schemas/auto_commentary.schema.json",
     }
 
 
@@ -102,6 +103,7 @@ def build_fixture_map(repo_root: Path) -> FixtureMap:
         "room": [(repo_root / "configs/rooms", True)],
         "moderation": [(repo_root / "configs/moderation", True)],
         "observation_context": [(repo_root / "configs/observation_context", True)],
+        "auto_commentary": [(repo_root / "configs/auto_commentary", True)],
     }
 
 
@@ -109,7 +111,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate config schemas and example configs")
     parser.add_argument(
         "--only",
-        choices=["persona", "room", "moderation", "observation_context"],
+        choices=["persona", "room", "moderation", "observation_context", "auto_commentary"],
         help="Validate a single config schema",
     )
     args = parser.parse_args(list(argv) if argv is not None else None)

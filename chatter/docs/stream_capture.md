@@ -7,6 +7,69 @@ These scripts:
 - Publish metadata-only events (path + sha + dims + timestamps).
 - Validate payloads against the protocol JSON Schemas before publishing.
 
+## Local stream demo (Milestone 4F)
+
+### Prereqs
+
+Host publishers require:
+
+```bash
+pip install redis jsonschema python-dotenv
+```
+
+Optional (recommended for screen capture + non-PNG conversion):
+
+```bash
+pip install mss pillow
+```
+
+Recommended `.env` for host runs:
+
+```bash
+REDIS_URL_HOST=redis://127.0.0.1:6379/0
+```
+
+### One-command demo
+
+From the repo root (`chatter/`):
+
+```bash
+npm run dev:stream
+```
+
+On Windows, `npm run dev:stream` expects Git Bash on PATH. For PowerShell, use the command below.
+
+Git Bash alternative:
+
+```bash
+bash scripts/dev/run_stream_demo.sh
+```
+
+PowerShell alternative:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/dev/run_stream_demo.ps1
+```
+
+Type transcript lines and watch observations print in the same terminal. Use Ctrl+C to stop.
+
+### Autonomous commentary demo (Milestone 4G)
+
+Enable autonomous bot commentary during the stream demo:
+
+```bash
+AUTO_COMMENTARY_ENABLED=1 npm run dev:stream
+```
+
+Tune thresholds/cooldowns by editing `configs/auto_commentary/default.json` or pointing
+`AUTO_COMMENTARY_CONFIG_PATH` at another config file.
+
+### Tail observations only
+
+```bash
+npm run dev:tail:observations
+```
+
 ## Start the stack
 
 From the repo root (`chatter/`):
@@ -85,6 +148,7 @@ docker compose -f docker-compose.yml -f docker-compose.test.yml logs --tail=200 
 
 - Missing `mss` (screen mode): `pip install mss`, or use `--mode file`.
 - Missing `Pillow`: `publish_frames.py` can still publish PNGs without Pillow, but non-PNG inputs require `pip install pillow`.
+- Redis hostname resolution on host: ensure `REDIS_URL_HOST=redis://127.0.0.1:6379/0` is set (host scripts should not use `redis://redis:6379/0`).
+- Inspect observations directly: `docker compose -f docker-compose.yml -f docker-compose.test.yml exec redis redis-cli XREVRANGE stream:observations + - COUNT 5`.
 - `file_missing` in `stream_perceptor /stats`: ensure frames are written under the repo (default `data/stream_frames/...`) and `frame_path` points to `/app/...` (compose bind-mounts the repo at `/app`).
 - `sha_mismatch` in stats: the file at `frame_path` changed after publishing (overwritten, converted, or written to a different location than expected).
-

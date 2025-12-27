@@ -15,6 +15,9 @@ class LLMRequest:
     tags: Dict[str, object] = field(default_factory=dict)
     memory_context: str = ""
     observation_context: str = ""
+    observation_summary: str = ""
+    persona_profile: str = ""
+    prompt_id: Optional[str] = None
     system_prompt: str = ""
     user_prompt: str = ""
 

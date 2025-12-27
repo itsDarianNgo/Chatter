@@ -15,7 +15,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def build_chat_message(persona: Dict, room_id: str, content: str, consumer_name: str) -> Dict:
+def build_chat_message(
+    persona: Dict, room_id: str, content: str, consumer_name: str, producer: str = "persona_worker"
+) -> Dict:
     return {
         "schema_name": "ChatMessage",
         "schema_version": "1.0.0",
@@ -34,7 +36,7 @@ def build_chat_message(persona: Dict, room_id: str, content: str, consumer_name:
         "client_meta": None,
         "moderation": None,
         "trace": {
-            "producer": "persona_worker",
+            "producer": producer,
             "persona_id": persona.get("persona_id"),
             "worker_instance": consumer_name,
         },
@@ -46,9 +48,16 @@ def _generate_id() -> str:
 
 
 async def publish_chat_message(
-    client: redis.Redis, ingest_stream: str, persona: Dict, room_id: str, content: str, consumer_name: str, validator: ChatMessageValidator
+    client: redis.Redis,
+    ingest_stream: str,
+    persona: Dict,
+    room_id: str,
+    content: str,
+    consumer_name: str,
+    validator: ChatMessageValidator,
+    trace_producer: str = "persona_worker",
 ) -> bool:
-    message = build_chat_message(persona, room_id, content, consumer_name)
+    message = build_chat_message(persona, room_id, content, consumer_name, producer=trace_producer)
     try:
         validator.validate(message)
     except Exception as exc:  # noqa: BLE001

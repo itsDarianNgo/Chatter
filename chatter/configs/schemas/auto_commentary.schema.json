@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chatter.local/config-schemas/auto_commentary.schema.json",
+  "title": "AutoCommentaryConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "enabled",
+    "room_id_mode",
+    "hype_threshold",
+    "trigger_tags",
+    "trigger_on_entities",
+    "persona_cooldown_ms",
+    "room_rate_limit_ms",
+    "max_messages_per_observation",
+    "dedupe_window_ms",
+    "message_prefix",
+    "max_reply_chars",
+    "include_obs_id"
+  ],
+  "properties": {
+    "enabled": { "type": "boolean", "default": false },
+    "room_id_mode": {
+      "type": "string",
+      "enum": ["single", "any"],
+      "default": "single"
+    },
+    "hype_threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.5
+    },
+    "trigger_tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "maxItems": 64,
+      "default": ["hype", "mentions"]
+    },
+    "trigger_on_entities": { "type": "boolean", "default": true },
+    "persona_cooldown_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 600000,
+      "default": 8000
+    },
+    "room_rate_limit_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 600000,
+      "default": 2000
+    },
+    "max_messages_per_observation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 1
+    },
+    "dedupe_window_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3600000,
+      "default": 600000
+    },
+    "message_prefix": { "type": "string", "maxLength": 64, "default": "AUTO_OBS:" },
+    "max_reply_chars": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 400,
+      "default": 240
+    },
+    "include_obs_id": { "type": "boolean", "default": false }
+  }
+}

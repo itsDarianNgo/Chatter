@@ -14,7 +14,13 @@ trap cleanup EXIT
 restart_persona_workers() {
   echo "Restarting persona_workers to reset in-memory state (budgets/cooldowns/dedupe)..."
   $COMPOSE restart persona_workers
-  # Re-use existing health gate; it’s fine if it checks gateway too.
+  # Re-use existing health gate; it's fine if it checks gateway too.
+  bash scripts/integration/wait_for_services.sh
+}
+
+recreate_persona_workers_with_auto() {
+  echo "Recreating persona_workers with AUTO_COMMENTARY_ENABLED=1..."
+  AUTO_COMMENTARY_ENABLED=1 $COMPOSE up -d --no-deps --force-recreate persona_workers
   bash scripts/integration/wait_for_services.sh
 }
 
@@ -55,3 +61,7 @@ restart_persona_workers
 
 # 6) Reactivity (observations -> persona replies)
 npm run test:e2e:reactivity
+
+# 7) Auto commentary (observations -> bot messages without human prompt)
+recreate_persona_workers_with_auto
+AUTO_COMMENTARY_ENABLED=1 npm run test:e2e:commentary

@@ -25,3 +25,7 @@ class StreamObservationValidator(JSONSchemaValidator):
 
 class ObservationContextValidator(JSONSchemaValidator):
     pass
+
+
+class AutoCommentaryValidator(JSONSchemaValidator):
+    pass

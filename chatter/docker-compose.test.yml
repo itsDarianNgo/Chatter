@@ -11,6 +11,8 @@ services:
       MEMORY_EXTRACT_STRATEGY: heuristic
       MEMORY_MAX_ITEMS: 5
       MEMORY_MAX_CHARS: 800
+      AUTO_COMMENTARY_ENABLED: ${AUTO_COMMENTARY_ENABLED:-}
+      AUTO_COMMENTARY_CONFIG_PATH: ${AUTO_COMMENTARY_CONFIG_PATH:-/app/configs/auto_commentary/default.json}
 
   stream_perceptor:
     environment:

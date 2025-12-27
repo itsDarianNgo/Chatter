@@ -1,0 +1,14 @@
+{
+  "enabled": false,
+  "room_id_mode": "single",
+  "hype_threshold": 0.5,
+  "trigger_tags": ["hype", "mentions"],
+  "trigger_on_entities": true,
+  "persona_cooldown_ms": 8000,
+  "room_rate_limit_ms": 2000,
+  "max_messages_per_observation": 1,
+  "dedupe_window_ms": 600000,
+  "message_prefix": "AUTO_OBS:",
+  "max_reply_chars": 240,
+  "include_obs_id": false
+}

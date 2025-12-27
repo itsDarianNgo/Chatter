@@ -23,6 +23,13 @@ def _env(name: str, default: Optional[str] = None) -> Optional[str]:
     return os.environ.get(name, default)
 
 
+def _env_optional_bool(name: str) -> Optional[bool]:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return None
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 _load_dotenv_if_present()
 
 
@@ -77,6 +84,10 @@ class Settings:
     obs_context_config_path: str = _env(
         "OBS_CONTEXT_CONFIG_PATH", "/app/configs/observation_context/default.json"
     )
+    auto_commentary_config_path: str = _env(
+        "AUTO_COMMENTARY_CONFIG_PATH", "/app/configs/auto_commentary/default.json"
+    )
+    auto_commentary_enabled_override: Optional[bool] = _env_optional_bool("AUTO_COMMENTARY_ENABLED")
 
 
 def load_settings() -> Settings:

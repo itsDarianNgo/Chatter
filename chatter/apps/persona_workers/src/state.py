@@ -91,6 +91,11 @@ class State:
         self.rooms: Dict[str, RoomState] = {}
         self.persona_stats: Dict[str, PersonaStats] = {}
         self.observations: Dict[str, List[ObservationEntry]] = {}
+        self.auto_room_last_spoke: Dict[str, int] = {}
+        self.auto_persona_last_spoke: Dict[str, int] = {}
+        self.auto_dedupe: "OrderedDict[str, int]" = OrderedDict()
+        self.auto_observation_counts: "OrderedDict[str, tuple[int, int]]" = OrderedDict()
+        self.auto_last_observation_ids: Deque[str] = deque(maxlen=5)
 
     def get_room_state(self, room_id: str, budget_limit: int, budget_window_ms: int) -> RoomState:
         if room_id not in self.rooms:
@@ -113,6 +118,75 @@ class State:
         if len(self.dedupe_cache) > self.dedupe_size:
             self.dedupe_cache.popitem(last=False)
         return False
+
+    def record_auto_observation_id(self, obs_id: str) -> None:
+        if obs_id:
+            self.auto_last_observation_ids.append(obs_id)
+
+    def auto_seen_before(self, obs_id: str, persona_id: str, now_ms: int, window_ms: int) -> bool:
+        self._prune_auto_dedupe(now_ms, window_ms)
+        key = f"{obs_id}:{persona_id}"
+        if key in self.auto_dedupe:
+            return True
+        self.auto_dedupe[key] = now_ms
+        self.auto_dedupe.move_to_end(key)
+        return False
+
+    def auto_observation_count(self, obs_id: str, now_ms: int, window_ms: int) -> int:
+        self._prune_auto_observation_counts(now_ms, window_ms)
+        entry = self.auto_observation_counts.get(obs_id)
+        return entry[1] if entry else 0
+
+    def record_auto_observation_message(self, obs_id: str, now_ms: int, window_ms: int) -> int:
+        self._prune_auto_observation_counts(now_ms, window_ms)
+        if obs_id in self.auto_observation_counts:
+            first_seen, count = self.auto_observation_counts[obs_id]
+            count += 1
+            self.auto_observation_counts[obs_id] = (first_seen, count)
+        else:
+            self.auto_observation_counts[obs_id] = (now_ms, 1)
+        self.auto_observation_counts.move_to_end(obs_id)
+        return self.auto_observation_counts[obs_id][1]
+
+    def auto_persona_ready(self, persona_id: str, now_ms: int, cooldown_ms: int) -> bool:
+        if cooldown_ms <= 0:
+            return True
+        last_ms = self.auto_persona_last_spoke.get(persona_id)
+        if last_ms is None:
+            return True
+        return now_ms - last_ms >= cooldown_ms
+
+    def auto_room_ready(self, room_id: str, now_ms: int, rate_limit_ms: int) -> bool:
+        if rate_limit_ms <= 0:
+            return True
+        last_ms = self.auto_room_last_spoke.get(room_id)
+        if last_ms is None:
+            return True
+        return now_ms - last_ms >= rate_limit_ms
+
+    def record_auto_publish(self, room_id: str, persona_id: str, now_ms: int) -> None:
+        self.auto_room_last_spoke[room_id] = now_ms
+        self.auto_persona_last_spoke[persona_id] = now_ms
+
+    def _prune_auto_dedupe(self, now_ms: int, window_ms: int) -> None:
+        if window_ms <= 0:
+            self.auto_dedupe.clear()
+            return
+        while self.auto_dedupe:
+            _, ts_ms = next(iter(self.auto_dedupe.items()))
+            if now_ms - ts_ms <= window_ms:
+                break
+            self.auto_dedupe.popitem(last=False)
+
+    def _prune_auto_observation_counts(self, now_ms: int, window_ms: int) -> None:
+        if window_ms <= 0:
+            self.auto_observation_counts.clear()
+            return
+        while self.auto_observation_counts:
+            _, (ts_ms, _) = next(iter(self.auto_observation_counts.items()))
+            if now_ms - ts_ms <= window_ms:
+                break
+            self.auto_observation_counts.popitem(last=False)
 
     def add_recent_message(self, room_id: str, message: dict, budget_limit: int, budget_window_ms: int) -> None:
         room_state = self.get_room_state(room_id, budget_limit, budget_window_ms)
@@ -218,6 +292,20 @@ class Stats:
     obs_context_max_chars: int | None = None
     obs_context_prefix: str | None = None
     obs_context_format_version: str | None = None
+    auto_commentary_enabled: bool = False
+    auto_commentary_hype_threshold: float | None = None
+    auto_commentary_persona_cooldown_ms: int | None = None
+    auto_commentary_room_rate_limit_ms: int | None = None
+    auto_obs_seen: int = 0
+    auto_obs_interesting: int = 0
+    auto_messages_attempted: int = 0
+    auto_messages_published: int = 0
+    auto_suppressed_cooldown: int = 0
+    auto_suppressed_room_rate: int = 0
+    auto_suppressed_dedupe: int = 0
+    auto_generation_failed: int = 0
+    auto_last_observation_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=5))
+    auto_last_decision: dict | None = None
 
     def record_decision(self, persona_id: str, reason: str, tags: Optional[dict] = None) -> None:
         tags = tags or {}
@@ -292,4 +380,18 @@ class Stats:
             "obs_context_max_chars": self.obs_context_max_chars,
             "obs_context_prefix": self.obs_context_prefix,
             "obs_context_format_version": self.obs_context_format_version,
+            "auto_commentary_enabled": self.auto_commentary_enabled,
+            "auto_commentary_hype_threshold": self.auto_commentary_hype_threshold,
+            "auto_commentary_persona_cooldown_ms": self.auto_commentary_persona_cooldown_ms,
+            "auto_commentary_room_rate_limit_ms": self.auto_commentary_room_rate_limit_ms,
+            "auto_obs_seen": self.auto_obs_seen,
+            "auto_obs_interesting": self.auto_obs_interesting,
+            "auto_messages_attempted": self.auto_messages_attempted,
+            "auto_messages_published": self.auto_messages_published,
+            "auto_suppressed_cooldown": self.auto_suppressed_cooldown,
+            "auto_suppressed_room_rate": self.auto_suppressed_room_rate,
+            "auto_suppressed_dedupe": self.auto_suppressed_dedupe,
+            "auto_generation_failed": self.auto_generation_failed,
+            "auto_last_observation_ids": list(self.auto_last_observation_ids),
+            "auto_last_decision": self.auto_last_decision,
         }
