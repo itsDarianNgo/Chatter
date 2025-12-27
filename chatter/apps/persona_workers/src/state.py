@@ -292,10 +292,12 @@ class Stats:
     obs_context_max_chars: int | None = None
     obs_context_prefix: str | None = None
     obs_context_format_version: str | None = None
+    chat_reply_prompt_id: str | None = None
     auto_commentary_enabled: bool = False
     auto_commentary_hype_threshold: float | None = None
     auto_commentary_persona_cooldown_ms: int | None = None
     auto_commentary_room_rate_limit_ms: int | None = None
+    auto_commentary_prompt_id: str | None = None
     auto_obs_seen: int = 0
     auto_obs_interesting: int = 0
     auto_messages_attempted: int = 0
@@ -380,10 +382,12 @@ class Stats:
             "obs_context_max_chars": self.obs_context_max_chars,
             "obs_context_prefix": self.obs_context_prefix,
             "obs_context_format_version": self.obs_context_format_version,
+            "chat_reply_prompt_id": self.chat_reply_prompt_id,
             "auto_commentary_enabled": self.auto_commentary_enabled,
             "auto_commentary_hype_threshold": self.auto_commentary_hype_threshold,
             "auto_commentary_persona_cooldown_ms": self.auto_commentary_persona_cooldown_ms,
             "auto_commentary_room_rate_limit_ms": self.auto_commentary_room_rate_limit_ms,
+            "auto_commentary_prompt_id": self.auto_commentary_prompt_id,
             "auto_obs_seen": self.auto_obs_seen,
             "auto_obs_interesting": self.auto_obs_interesting,
             "auto_messages_attempted": self.auto_messages_attempted,

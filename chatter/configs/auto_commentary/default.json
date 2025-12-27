@@ -8,6 +8,7 @@
   "room_rate_limit_ms": 2000,
   "max_messages_per_observation": 1,
   "dedupe_window_ms": 600000,
+  "prompt_id": "persona_auto_commentary_v1",
   "message_prefix": "AUTO_OBS:",
   "max_reply_chars": 240,
   "include_obs_id": false

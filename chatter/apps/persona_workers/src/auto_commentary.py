@@ -21,6 +21,7 @@ class AutoCommentaryConfig:
     room_rate_limit_ms: int
     max_messages_per_observation: int
     dedupe_window_ms: int
+    prompt_id: str
     message_prefix: str
     max_reply_chars: int
     include_obs_id: bool
@@ -98,6 +99,7 @@ def load_auto_commentary_config(
         room_rate_limit_ms=int(payload["room_rate_limit_ms"]),
         max_messages_per_observation=int(payload["max_messages_per_observation"]),
         dedupe_window_ms=int(payload["dedupe_window_ms"]),
+        prompt_id=str(payload["prompt_id"]),
         message_prefix=str(payload["message_prefix"]),
         max_reply_chars=int(payload["max_reply_chars"]),
         include_obs_id=bool(payload["include_obs_id"]),

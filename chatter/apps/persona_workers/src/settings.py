@@ -47,6 +47,7 @@ class Settings:
     generation_mode: str = _env("GENERATION_MODE", "deterministic")
     llm_provider_config_path: str = _env("LLM_PROVIDER_CONFIG_PATH", "configs/llm/providers/stub.json")
     prompt_manifest_path: str = _env("PROMPT_MANIFEST_PATH", "prompts/manifest.json")
+    chat_reply_prompt_id: str = _env("CHAT_REPLY_PROMPT_ID", "persona_chat_reply_v2")
     schema_chat_message_path: str = _env(
         "SCHEMA_CHAT_MESSAGE_PATH", "packages/protocol/jsonschema/chat_message.schema.json"
     )

@@ -30,6 +30,21 @@ const FIXTURE_CONTAINER_PATH = "/app/fixtures/stream/frame_fixture_1.png";
 
 const OBS_TEXT = "E2E_AUTO_OBS: dragon appears!!! @ClipGoblin";
 
+const assertNoObsDump = (content, label) => {
+  if (content.includes("obs: OBS:")) {
+    throw new Error(`${label} contains debug obs dump: ${content}`);
+  }
+  const withoutAutoPrefix = content.startsWith(E2E_AUTO_PREFIX)
+    ? content.slice(E2E_AUTO_PREFIX.length)
+    : content;
+  if (withoutAutoPrefix.includes("OBS:")) {
+    throw new Error(`${label} contains obs prefix: OBS:`);
+  }
+  if (content.includes("Z |")) {
+    throw new Error(`${label} contains timestamp chunk: Z |`);
+  }
+};
+
 const sha256File = (filePath) => {
   const bytes = fs.readFileSync(filePath);
   return createHash("sha256").update(bytes).digest("hex");
@@ -347,9 +362,10 @@ const waitForAutoReply = async ({ redis, group, consumer, roomId }) => {
         if (producer !== "persona_worker_auto") {
           continue;
         }
-        if (content.includes(E2E_AUTO_PREFIX) && content.includes("E2E_AUTO_OBS")) {
-          return msg;
-        }
+        if (!content.startsWith(E2E_AUTO_PREFIX)) continue;
+        if (!content.includes("E2E_AUTO_OBS")) continue;
+        assertNoObsDump(content, "Auto reply");
+        return msg;
       }
     }
 

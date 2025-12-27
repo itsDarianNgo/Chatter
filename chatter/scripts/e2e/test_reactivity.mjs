@@ -31,6 +31,18 @@ const FIXTURE_CONTAINER_PATH = "/app/fixtures/stream/frame_fixture_1.png";
 
 const OBS_TEXT = "E2E_REACTIVITY_OBS: lava rises!!! @ClipGoblin";
 
+const assertNoObsDump = (content, label) => {
+  if (content.includes("obs: OBS:")) {
+    throw new Error(`${label} contains debug obs dump: ${content}`);
+  }
+  if (E2E_OBS_PREFIX && content.includes(E2E_OBS_PREFIX)) {
+    throw new Error(`${label} contains obs prefix: ${E2E_OBS_PREFIX}`);
+  }
+  if (content.includes("Z |")) {
+    throw new Error(`${label} contains timestamp chunk: Z |`);
+  }
+};
+
 const sha256File = (filePath) => {
   const bytes = fs.readFileSync(filePath);
   return createHash("sha256").update(bytes).digest("hex");
@@ -345,9 +357,9 @@ const waitForBotReply = async ({ redis, group, consumer, roomId }) => {
         if (msg.origin !== "bot") continue;
 
         const content = String(msg.content || "");
-        if (content.includes(E2E_OBS_PREFIX) && content.includes("E2E_REACTIVITY_OBS")) {
-          return msg;
-        }
+        if (!content.includes("E2E_REACTIVITY_OBS")) continue;
+        assertNoObsDump(content, "Bot reply");
+        return msg;
       }
     }
 

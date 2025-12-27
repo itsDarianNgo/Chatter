@@ -34,7 +34,21 @@ def _marker_prefix(marker: str) -> str:
     return marker[:16]
 
 
-def _extract_observation_snippet(context: str) -> str:
+def _deterministic_index(seed: str, modulo: int) -> int:
+    digest = hashlib.blake2b(seed.encode("utf-8"), digest_size=8).digest()
+    return int.from_bytes(digest, "big") % modulo
+
+
+def _normalize_summary(text: str) -> str:
+    cleaned = re.sub(r"\s+", " ", text.replace("\n", " ").replace("\r", " ")).strip()
+    if not cleaned:
+        return ""
+    return cleaned.replace("OBS:", "OBS")
+
+
+def _extract_observation_summary(summary: str, context: str) -> str:
+    if summary and summary.strip():
+        return summary
     if not context:
         return ""
     lines = [line.strip() for line in context.splitlines() if line.strip()]
@@ -43,29 +57,50 @@ def _extract_observation_snippet(context: str) -> str:
             if "OBS:" not in line and "|" not in line and "tags=" not in line and "entities=" not in line and "hype=" not in line:
                 continue
         candidate = line
-        if " | " in candidate:
-            parts = [part.strip() for part in candidate.split(" | ") if part.strip()]
-            if len(parts) >= 2:
-                candidate = " | ".join(parts[:2])
-        return candidate
+        if candidate.lower().startswith("obs:"):
+            candidate = candidate[4:].strip()
+        parts = [part.strip() for part in candidate.split(" | ") if part.strip()]
+        for part in parts:
+            lower = part.lower()
+            if lower.startswith(("tags=", "entities=", "hype=")):
+                continue
+            if re.match(r"^\d{4}-\d{2}-\d{2}t", lower):
+                continue
+            return part
     return ""
 
 
-def _append_observation_snippet(base: str, context: str, max_chars: int) -> str:
-    snippet = _extract_observation_snippet(context)
-    if not snippet:
-        return base
-    suffix = f" obs: {snippet}"
-    if len(base) >= max_chars:
-        return base[:max_chars]
-    remaining = max_chars - len(base)
-    if remaining <= 0:
-        return base
-    if len(suffix) > remaining:
-        if remaining <= 1:
-            return base
-        suffix = suffix[: remaining - 1] + "."
-    return base + suffix
+def _extract_e2e_token(text: str) -> str:
+    for token in ("E2E_REACTIVITY_OBS", "E2E_AUTO_OBS"):
+        if token in text:
+            return token
+    for token in ("E2E_TEST_BOTLOOP_", "E2E_TEST_POLICY_", "E2E_TEST_", "E2E_MARKER_"):
+        if token in text:
+            idx = text.find(token)
+            return text[idx : idx + len(token) + 12]
+    return ""
+
+
+def _build_chatty_stub_reply(req: LLMRequest, prompt_id: str, max_chars: int) -> str:
+    summary_raw = _extract_observation_summary(req.observation_summary or "", req.observation_context or "")
+    summary = _normalize_summary(summary_raw)
+    token = _extract_e2e_token(summary)
+    if not token and req.marker:
+        token = _marker_prefix(req.marker)
+    rest = summary.replace(token, "").strip(" :-,") if token else summary
+    if not rest:
+        rest = "wild"
+    core = " ".join(part for part in (rest, token) if part).strip()
+    seed = f"{req.persona_id}:{prompt_id}:{token}:{rest}"
+    if prompt_id == "persona_chat_reply_v2":
+        suffixes = ["lol", "yo", "sheesh", "lfg", "no shot"]
+        suffix = suffixes[_deterministic_index(seed, len(suffixes))]
+        reply = f"{core} {suffix}".strip()
+    else:
+        prefixes = ["sheesh", "yo", "no way", "lmao", "wtf"]
+        prefix = prefixes[_deterministic_index(seed, len(prefixes))]
+        reply = f"{prefix} {core}".strip()
+    return _clean_text(reply, max_chars)
 
 
 def _is_memory_extract(req: LLMRequest) -> bool:
@@ -265,9 +300,14 @@ class StubLLMProvider(LLMProvider):
             text = _build_memory_extract_response(req)
             return LLMResponse(text=text, provider=self.provider_name, model="stub", meta={"mode": "memory_extract"})
 
+        prompt_id = req.prompt_id or ""
+        if prompt_id in {"persona_chat_reply_v2", "persona_auto_commentary_v1"}:
+            text = _build_chatty_stub_reply(req, prompt_id, self.max_output_chars)
+            return LLMResponse(
+                text=text, provider=self.provider_name, model="stub", meta={"mode": "chatty_stub", "prompt_id": prompt_id}
+            )
+
         key = self._resolve_key(req)
         raw = self._lookup_response(key)
         text = _clean_text(raw, self.max_output_chars)
-        if req.observation_context:
-            text = _append_observation_snippet(text, req.observation_context, self.max_output_chars)
         return LLMResponse(text=text, provider=self.provider_name, model=None, meta={"key": key})

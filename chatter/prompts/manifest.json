@@ -3,6 +3,31 @@
   "schema_version": "1.0.0",
   "prompts": [
     {
+      "id": "persona_chat_reply_v2",
+      "purpose": "persona_reply",
+      "version": "2.0.0",
+      "path": "prompts/persona/chat_reply_v2.md",
+      "sha256": "0155ad1ed0d4eb6b53bca9b0ba5d4ae5d9eb081f1a58c5fe17792bf2454533e5",
+      "input_vars": [
+        "persona_name",
+        "room_id",
+        "recent_messages",
+        "trigger_content",
+        "policy_tags",
+        "observation_summary"
+      ],
+      "output_contract": { "type": "text", "notes": "Single-line persona reply" }
+    },
+    {
+      "id": "persona_auto_commentary_v1",
+      "purpose": "persona_auto_commentary",
+      "version": "1.0.0",
+      "path": "prompts/persona/auto_commentary_v1.md",
+      "sha256": "b9bb2fa341938ab3940aaa68d53b4d2211ecbb81bd438657af5a2e032ce88825",
+      "input_vars": ["persona_name", "room_id", "recent_messages", "observation_summary"],
+      "output_contract": { "type": "text", "notes": "Single-line persona auto commentary" }
+    },
+    {
       "id": "persona_reply_v1",
       "purpose": "persona_reply",
       "version": "1.0.0",

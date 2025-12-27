@@ -62,6 +62,12 @@
       "maximum": 3600000,
       "default": 600000
     },
+    "prompt_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "default": "persona_auto_commentary_v1"
+    },
     "message_prefix": { "type": "string", "maxLength": 64, "default": "AUTO_OBS:" },
     "max_reply_chars": {
       "type": "integer",

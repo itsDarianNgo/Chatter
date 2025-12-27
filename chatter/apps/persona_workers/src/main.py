@@ -94,6 +94,9 @@ class PersonaWorkerService:
         self.stats.obs_context_max_chars = self.obs_context_config.max_chars
         self.stats.obs_context_prefix = self.obs_context_config.prefix
         self.stats.obs_context_format_version = self.obs_context_config.format_version
+        self.chat_reply_prompt_id = settings.chat_reply_prompt_id.strip() if settings.chat_reply_prompt_id else ""
+        self.chat_reply_prompt_id = self.chat_reply_prompt_id or None
+        self.stats.chat_reply_prompt_id = self.chat_reply_prompt_id
         self.auto_commentary_config_path = (base_path / settings.auto_commentary_config_path).resolve()
         self.auto_commentary_config: AutoCommentaryConfig = load_auto_commentary_config(
             self.auto_commentary_config_path,
@@ -108,6 +111,9 @@ class PersonaWorkerService:
         self.stats.auto_commentary_room_rate_limit_ms = (
             self.auto_commentary_config.room_rate_limit_ms
         )
+        self.auto_commentary_prompt_id = self.auto_commentary_config.prompt_id.strip()
+        self.auto_commentary_prompt_id = self.auto_commentary_prompt_id or None
+        self.stats.auto_commentary_prompt_id = self.auto_commentary_prompt_id
         self.auto_commentary_trigger_tags = set(self.auto_commentary_config.trigger_tags)
         self.memory_enabled = settings.memory_enabled
         self.memory_backend = None
@@ -789,6 +795,9 @@ class PersonaWorkerService:
                 tags,
                 memory_context=memory_context,
                 observation_context=obs_context_text,
+                observation_summary=str(observation.get("summary") or ""),
+                prompt_id=self.auto_commentary_prompt_id,
+                prompt_purpose="persona_auto_commentary",
             )
         except Exception as exc:  # noqa: BLE001
             self.stats.auto_generation_failed += 1
@@ -892,6 +901,8 @@ class PersonaWorkerService:
                     tags,
                     memory_context=memory_context,
                     observation_context=obs_context_text,
+                    prompt_id=self.chat_reply_prompt_id,
+                    prompt_purpose="persona_reply",
                 )
                 if obs_context_text:
                     self.stats.observations_used_in_prompts += 1
