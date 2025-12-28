@@ -2,9 +2,18 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 Set-Location $repoRoot
 
 if ($args -contains "--help" -or $args -contains "-h") {
-  Write-Host "Usage: powershell -ExecutionPolicy Bypass -File scripts/dev/run_stream_demo.ps1"
+  Write-Host "Usage: powershell -ExecutionPolicy Bypass -File scripts/dev/run_stream_demo.ps1 [--llm]"
   Write-Host "Starts the compose stack, publishers, and observation tailer."
+  Write-Host "  --llm  Enable LiteLLM-backed persona/perceptor (requires .env.local or env vars)."
   exit 0
+}
+
+$useLlm = $false
+if ($args -contains "--llm") {
+  $useLlm = $true
+}
+if ($env:DEV_LLM -eq "1") {
+  $useLlm = $true
 }
 
 function Require-Command {
@@ -49,8 +58,44 @@ if ($env:REDIS_URL_HOST) {
 }
 
 Write-Host "Using Redis URL: $redisUrl"
+if ($useLlm) {
+  $envPath = Join-Path $repoRoot ".env.local"
+  if (Test-Path $envPath) {
+    Get-Content $envPath | ForEach-Object {
+      $line = $_.Trim()
+      if (-not $line -or $line.StartsWith("#")) { return }
+      $parts = $line -split "=", 2
+      if ($parts.Length -ne 2) { return }
+      $name = $parts[0].Trim()
+      $value = $parts[1].Trim().Trim('"').Trim("'")
+      if ($name) {
+        $env:$name = $value
+      }
+    }
+  }
+
+  if (-not $env:LITELLM_BASE_URL -and -not $env:LLM_BASE_URL) {
+    Write-Host "FAIL: missing LITELLM_BASE_URL (or LLM_BASE_URL) for --llm."
+    exit 2
+  }
+  if (-not $env:LITELLM_API_KEY -and -not $env:OPENAI_API_KEY -and -not $env:LLM_API_KEY) {
+    Write-Host "FAIL: missing LITELLM_API_KEY (or OPENAI_API_KEY/LLM_API_KEY) for --llm."
+    exit 2
+  }
+  if (-not $env:PERSONA_LLM_MODEL -and -not $env:LLM_MODEL) {
+    Write-Host "FAIL: missing PERSONA_LLM_MODEL (or LLM_MODEL) for --llm."
+    exit 2
+  }
+  if (-not $env:PERCEPTOR_VISION_MODEL -and -not $env:PERCEPTOR_LLM_MODEL) {
+    Write-Host "WARN: PERCEPTOR_VISION_MODEL not set; stream_perceptor will reuse the persona model."
+  }
+}
 Write-Host "Starting compose stack..."
-& docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build
+$composeArgs = @("-f", "docker-compose.yml", "-f", "docker-compose.test.yml")
+if ($useLlm) {
+  $composeArgs += @("-f", "docker-compose.local.yml")
+}
+& docker compose @composeArgs up -d --build
 if ($LASTEXITCODE -ne 0) {
   Write-Host "FAIL: docker compose up failed."
   exit $LASTEXITCODE

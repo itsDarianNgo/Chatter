@@ -14,6 +14,13 @@
     "room_rate_limit_ms",
     "max_messages_per_observation",
     "dedupe_window_ms",
+    "momentum_window_ms",
+    "momentum_max_msgs",
+    "momentum_min_interval_ms",
+    "interest_weights",
+    "summary_dedupe",
+    "persona_diversity",
+    "mention_targeting",
     "message_prefix",
     "max_reply_chars",
     "include_obs_id"
@@ -61,6 +68,75 @@
       "minimum": 0,
       "maximum": 3600000,
       "default": 600000
+    },
+    "momentum_window_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 600000,
+      "default": 15000
+    },
+    "momentum_max_msgs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "default": 4
+    },
+    "momentum_min_interval_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 600000,
+      "default": 1200
+    },
+    "interest_weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hype", "mentions", "entities", "tag_hype"],
+      "properties": {
+        "hype": { "type": "number", "minimum": 0, "maximum": 2, "default": 1.0 },
+        "mentions": { "type": "number", "minimum": 0, "maximum": 2, "default": 0.4 },
+        "entities": { "type": "number", "minimum": 0, "maximum": 2, "default": 0.3 },
+        "tag_hype": { "type": "number", "minimum": 0, "maximum": 2, "default": 0.4 }
+      },
+      "default": {
+        "hype": 1.0,
+        "mentions": 0.4,
+        "entities": 0.3,
+        "tag_hype": 0.4
+      }
+    },
+    "summary_dedupe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "ttl_ms", "normalize"],
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "ttl_ms": { "type": "integer", "minimum": 0, "maximum": 3600000, "default": 120000 },
+        "normalize": { "type": "boolean", "default": true }
+      },
+      "default": {
+        "enabled": true,
+        "ttl_ms": 120000,
+        "normalize": true
+      }
+    },
+    "persona_diversity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["avoid_repeat_last_n"],
+      "properties": {
+        "avoid_repeat_last_n": { "type": "integer", "minimum": 0, "maximum": 10, "default": 2 }
+      },
+      "default": { "avoid_repeat_last_n": 2 }
+    },
+    "mention_targeting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "boost"],
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "boost": { "type": "number", "minimum": 0, "maximum": 2, "default": 0.35 }
+      },
+      "default": { "enabled": true, "boost": 0.35 }
     },
     "prompt_id": {
       "type": "string",

@@ -17,9 +17,11 @@
     "validate:artifacts": "npm run validate:protocol && npm run validate:configs && npm run validate:prompt-outputs && npm run validate:llm && npm run validate:memory",
     "dev:demo": "docker compose up --build",
     "dev:stream": "bash scripts/dev/run_stream_demo.sh",
+    "dev:stream:llm": "bash scripts/dev/run_stream_demo.sh --llm",
     "dev:tail:observations": "node scripts/dev/tail_observations.mjs --room-id room:demo --since now",
     "demo:publisher": "python apps/tools/stub_publisher/publish.py --rate 10",
     "compose:up": "docker compose up -d --build",
+    "dev:up:llm": "docker compose -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.local.yml up -d --build",
     "compose:down": "docker compose down -v",
     "test:e2e": "bash scripts/integration/e2e_firehose_ws_test.sh",
     "test:e2e:botloop": "bash scripts/integration/e2e_botloop_test.sh",
@@ -38,6 +40,7 @@
     "test:llm:smoke": "python scripts/integration/litellm_smoke.py",
     "test:mem0:smoke": "python scripts/integration/mem0_smoke.py",
     "test:vision:smoke": "python scripts/integration/vision_smoke.py",
+    "test:chat:smoke": "python scripts/integration/chat_smoke.py",
     "test:asr:smoke": "python scripts/integration/asr_smoke.py"
   },
   "dependencies": {

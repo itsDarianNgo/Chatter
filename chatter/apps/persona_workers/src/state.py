@@ -96,6 +96,9 @@ class State:
         self.auto_dedupe: "OrderedDict[str, int]" = OrderedDict()
         self.auto_observation_counts: "OrderedDict[str, tuple[int, int]]" = OrderedDict()
         self.auto_last_observation_ids: Deque[str] = deque(maxlen=5)
+        self.auto_room_publish_times: Dict[str, Deque[int]] = {}
+        self.auto_room_persona_history: Dict[str, Deque[str]] = {}
+        self.auto_summary_dedupe: "OrderedDict[str, int]" = OrderedDict()
 
     def get_room_state(self, room_id: str, budget_limit: int, budget_window_ms: int) -> RoomState:
         if room_id not in self.rooms:
@@ -123,9 +126,9 @@ class State:
         if obs_id:
             self.auto_last_observation_ids.append(obs_id)
 
-    def auto_seen_before(self, obs_id: str, persona_id: str, now_ms: int, window_ms: int) -> bool:
+    def auto_seen_before(self, dedupe_key: str, persona_id: str, now_ms: int, window_ms: int) -> bool:
         self._prune_auto_dedupe(now_ms, window_ms)
-        key = f"{obs_id}:{persona_id}"
+        key = f"{dedupe_key}:{persona_id}"
         if key in self.auto_dedupe:
             return True
         self.auto_dedupe[key] = now_ms
@@ -164,9 +167,43 @@ class State:
             return True
         return now_ms - last_ms >= rate_limit_ms
 
-    def record_auto_publish(self, room_id: str, persona_id: str, now_ms: int) -> None:
+    def auto_room_momentum_ready(
+        self, room_id: str, now_ms: int, window_ms: int, max_msgs: int, min_interval_ms: int
+    ) -> tuple[bool, str]:
+        if window_ms <= 0 and max_msgs <= 0 and min_interval_ms <= 0:
+            return True, "ok"
+        window = self.auto_room_publish_times.setdefault(room_id, deque())
+        if window_ms > 0:
+            while window and now_ms - window[0] > window_ms:
+                window.popleft()
+        else:
+            window.clear()
+        if min_interval_ms > 0 and window:
+            if now_ms - window[-1] < min_interval_ms:
+                return False, "momentum_min_interval"
+        if max_msgs > 0 and len(window) >= max_msgs:
+            return False, "momentum_max_msgs"
+        return True, "ok"
+
+    def auto_recent_personas(self, room_id: str, limit: int) -> list[str]:
+        if limit <= 0:
+            return []
+        history = self.auto_room_persona_history.get(room_id)
+        if not history:
+            return []
+        return list(history)[-limit:]
+
+    def record_auto_publish(self, room_id: str, persona_id: str, now_ms: int, history_size: int) -> None:
         self.auto_room_last_spoke[room_id] = now_ms
         self.auto_persona_last_spoke[persona_id] = now_ms
+        window = self.auto_room_publish_times.setdefault(room_id, deque())
+        window.append(now_ms)
+        if history_size > 0:
+            history = self.auto_room_persona_history.get(room_id)
+            if history is None or history.maxlen != history_size:
+                history = deque(list(history or []), maxlen=history_size)
+                self.auto_room_persona_history[room_id] = history
+            history.append(persona_id)
 
     def _prune_auto_dedupe(self, now_ms: int, window_ms: int) -> None:
         if window_ms <= 0:
@@ -187,6 +224,26 @@ class State:
             if now_ms - ts_ms <= window_ms:
                 break
             self.auto_observation_counts.popitem(last=False)
+
+    def auto_summary_seen_before(self, summary_hash: str, now_ms: int, ttl_ms: int) -> bool:
+        self._prune_auto_summary_dedupe(now_ms, ttl_ms)
+        return summary_hash in self.auto_summary_dedupe
+
+    def record_auto_summary(self, summary_hash: str, now_ms: int) -> None:
+        if not summary_hash:
+            return
+        self.auto_summary_dedupe[summary_hash] = now_ms
+        self.auto_summary_dedupe.move_to_end(summary_hash)
+
+    def _prune_auto_summary_dedupe(self, now_ms: int, ttl_ms: int) -> None:
+        if ttl_ms <= 0:
+            self.auto_summary_dedupe.clear()
+            return
+        while self.auto_summary_dedupe:
+            _, ts_ms = next(iter(self.auto_summary_dedupe.items()))
+            if now_ms - ts_ms <= ttl_ms:
+                break
+            self.auto_summary_dedupe.popitem(last=False)
 
     def add_recent_message(self, room_id: str, message: dict, budget_limit: int, budget_window_ms: int) -> None:
         room_state = self.get_room_state(room_id, budget_limit, budget_window_ms)
@@ -305,8 +362,13 @@ class Stats:
     auto_suppressed_cooldown: int = 0
     auto_suppressed_room_rate: int = 0
     auto_suppressed_dedupe: int = 0
+    auto_suppressed_momentum: int = 0
+    auto_suppressed_summary_dedupe: int = 0
+    auto_suppressed_diversity: int = 0
+    auto_suppressed_not_interesting: int = 0
     auto_generation_failed: int = 0
     auto_last_observation_ids: Deque[str] = field(default_factory=lambda: deque(maxlen=5))
+    auto_last_interest_score: float | None = None
     auto_last_decision: dict | None = None
 
     def record_decision(self, persona_id: str, reason: str, tags: Optional[dict] = None) -> None:
@@ -395,7 +457,12 @@ class Stats:
             "auto_suppressed_cooldown": self.auto_suppressed_cooldown,
             "auto_suppressed_room_rate": self.auto_suppressed_room_rate,
             "auto_suppressed_dedupe": self.auto_suppressed_dedupe,
+            "auto_suppressed_momentum": self.auto_suppressed_momentum,
+            "auto_suppressed_summary_dedupe": self.auto_suppressed_summary_dedupe,
+            "auto_suppressed_diversity": self.auto_suppressed_diversity,
+            "auto_suppressed_not_interesting": self.auto_suppressed_not_interesting,
             "auto_generation_failed": self.auto_generation_failed,
             "auto_last_observation_ids": list(self.auto_last_observation_ids),
+            "auto_last_interest_score": self.auto_last_interest_score,
             "auto_last_decision": self.auto_last_decision,
         }

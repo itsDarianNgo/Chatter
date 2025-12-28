@@ -16,8 +16,6 @@ const repoRoot = path.resolve(__dirname, "..", "..");
 const env = (name, fallback) => (process.env[name] && process.env[name].trim() ? process.env[name].trim() : fallback);
 
 const REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0");
-const STREAM_FRAMES_KEY = env("STREAM_FRAMES_KEY", "stream:frames");
-const STREAM_TRANSCRIPTS_KEY = env("STREAM_TRANSCRIPTS_KEY", "stream:transcripts");
 const STREAM_OBSERVATIONS_KEY = env("STREAM_OBSERVATIONS_KEY", "stream:observations");
 const FIREHOSE_STREAM = env("FIREHOSE_STREAM", "stream:chat.firehose");
 
@@ -26,7 +24,6 @@ const E2E_ROOM_ID = env("E2E_ROOM_ID", "");
 const E2E_AUTO_PREFIX = env("E2E_AUTO_PREFIX", "AUTO_OBS:");
 
 const FIXTURE_HOST_PATH = path.join(repoRoot, "fixtures/stream/frame_fixture_1.png");
-const FIXTURE_CONTAINER_PATH = "/app/fixtures/stream/frame_fixture_1.png";
 
 const OBS_TEXT = "E2E_AUTO_OBS: dragon appears!!! @ClipGoblin";
 
@@ -264,62 +261,6 @@ const ensureAutoCommentaryEnabled = async () => {
   );
 };
 
-const waitForObservation = async ({ redis, group, consumer, roomId, frameSha256, transcriptId }) => {
-  const deadline = Date.now() + 20_000;
-  while (Date.now() < deadline) {
-    const reply = await redis
-      .send(["XREADGROUP", "GROUP", group, consumer, "COUNT", "10", "BLOCK", "1000", "STREAMS", STREAM_OBSERVATIONS_KEY, ">"])
-      .catch((err) => {
-        throw new Error(`XREADGROUP observations failed: ${err.message || err}`);
-      });
-
-    if (!reply) {
-      await sleep(50);
-      continue;
-    }
-
-    for (const [streamName, entries] of reply) {
-      if (streamName !== STREAM_OBSERVATIONS_KEY) continue;
-      for (const [entryId, kv] of entries) {
-        const rawData = extractDataField(kv);
-        try {
-          if (!rawData) throw new Error("missing data field");
-          const obs = JSON.parse(rawData);
-
-          await redis.send(["XACK", STREAM_OBSERVATIONS_KEY, group, entryId]);
-
-          if (!obs || typeof obs !== "object") continue;
-          if (obs.room_id !== roomId) continue;
-
-          const ok = validateStreamObservationV1(obs);
-          if (!ok) {
-            throw new Error(`StreamObservation schema invalid: ${formatAjvErrors(validateStreamObservationV1.errors)}`);
-          }
-
-          if (String(obs.frame_sha256).toLowerCase() !== frameSha256.toLowerCase()) {
-            throw new Error(`frame_sha256 mismatch: expected=${frameSha256} got=${obs.frame_sha256}`);
-          }
-          if (!Array.isArray(obs.transcript_ids) || !obs.transcript_ids.includes(transcriptId)) {
-            throw new Error(`transcript_ids missing transcript id: ${transcriptId}`);
-          }
-          if (typeof obs.summary !== "string" || !obs.summary.includes("E2E_AUTO_OBS")) {
-            throw new Error(`summary missing marker: ${obs.summary}`);
-          }
-
-          return obs;
-        } catch (err) {
-          const msg = err && err.message ? err.message : String(err);
-          throw new Error(`Failed validating observation entry=${entryId} room=${roomId}: ${msg}`);
-        }
-      }
-    }
-
-    await sleep(50);
-  }
-
-  throw new Error("Timed out waiting for StreamObservation");
-};
-
 const waitForAutoReply = async ({ redis, group, consumer, roomId }) => {
   const deadline = Date.now() + 25_000;
   while (Date.now() < deadline) {
@@ -389,34 +330,41 @@ const main = async () => {
 
   const transcriptId = `seg_commentary_${stamp}`;
   const frameId = `frame_commentary_${stamp}`;
+  const observationId = `obs_commentary_${stamp}`;
 
-  const transcriptEvent = {
-    schema_name: "StreamTranscriptSegment",
+  const observationEvent = {
+    schema_name: "StreamObservation",
     schema_version: "1.0.0",
-    id: transcriptId,
+    id: observationId,
     ts,
     room_id: roomId,
-    start_ms: 0,
-    end_ms: 1200,
-    text: OBS_TEXT,
-    confidence: 0.99,
+    frame_id: frameId,
+    frame_sha256: frameSha256,
+    transcript_ids: [transcriptId],
+    summary: OBS_TEXT,
+    tags: ["e2e", "hype", "mentions"],
+    entities: ["ClipGoblin"],
+    hype_level: 0.9,
+    safety: {
+      sexual_content: false,
+      violence: false,
+      self_harm: false,
+      hate: false,
+      harassment: false,
+    },
+    trace: {
+      provider: "stub",
+      model: "stub",
+      latency_ms: 1,
+      prompt_id: "stream_observation_v1",
+      prompt_sha256: "0".repeat(64),
+    },
   };
 
-  const frameEvent = {
-    schema_name: "StreamFrame",
-    schema_version: "1.0.0",
-    id: frameId,
-    ts,
-    room_id: roomId,
-    frame_path: FIXTURE_CONTAINER_PATH,
-    sha256: frameSha256,
-    width: 1,
-    height: 1,
-    format: "png",
-    source: "fixture",
-    seq: 1,
-    capture_ms: stamp,
-  };
+  const obsOk = validateStreamObservationV1(observationEvent);
+  if (!obsOk) {
+    throw new Error(`StreamObservation schema invalid: ${formatAjvErrors(validateStreamObservationV1.errors)}`);
+  }
 
   const { host, port, db } = parseRedisUrl(REDIS_URL);
   const redis = new RedisClient({ host, port });
@@ -426,25 +374,11 @@ const main = async () => {
     await redis.send(["PING"]);
     if (db !== 0) await redis.send(["SELECT", String(db)]);
 
-    const obsGroup = `e2e_commentary_obs_${stamp}`;
-    const obsConsumer = `c_obs_${stamp}`;
-    await xgroupCreate(redis, STREAM_OBSERVATIONS_KEY, obsGroup, "$");
-
     const firehoseGroup = `e2e_commentary_firehose_${stamp}`;
     const firehoseConsumer = `c_firehose_${stamp}`;
     await xgroupCreate(redis, FIREHOSE_STREAM, firehoseGroup, "$");
 
-    await xaddJson(redis, STREAM_TRANSCRIPTS_KEY, transcriptEvent);
-    await xaddJson(redis, STREAM_FRAMES_KEY, frameEvent);
-
-    const obs = await waitForObservation({
-      redis,
-      group: obsGroup,
-      consumer: obsConsumer,
-      roomId,
-      frameSha256,
-      transcriptId,
-    });
+    await xaddJson(redis, STREAM_OBSERVATIONS_KEY, observationEvent);
 
     const botMsg = await waitForAutoReply({
       redis,
@@ -458,7 +392,7 @@ const main = async () => {
         {
           ok: true,
           room_id: roomId,
-          observation_id: obs.id,
+          observation_id: observationId,
           bot_message_id: botMsg.id,
         },
         null,

@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -75,9 +76,76 @@ def _load_prompt_entry(manifest: dict, prompt_id: str) -> dict:
     raise ValueError(f"prompt_id not found in manifest: {prompt_id}")
 
 
+def _resolve_env_value(*names: str) -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value is None:
+            continue
+        cleaned = value.strip()
+        if cleaned:
+            return cleaned
+    return ""
+
+
+def _select_api_key_env(existing: str | None, candidates: list[str]) -> str | None:
+    for name in candidates:
+        value = os.getenv(name)
+        if value and value.strip():
+            return name
+    if existing:
+        return str(existing)
+    return candidates[0] if candidates else None
+
+
+def _apply_llm_env_overrides(provider_config: dict) -> dict:
+    provider_override = _resolve_env_value("PERCEPTOR_LLM_PROVIDER", "LLM_PROVIDER")
+    if not provider_override:
+        return provider_config
+
+    normalized = provider_override.lower()
+    if normalized not in {"stub", "litellm"}:
+        raise ValueError(f"Unsupported PERCEPTOR_LLM_PROVIDER override: {provider_override}")
+
+    cfg = dict(provider_config)
+    cfg.setdefault("schema_name", "LLMProviderConfig")
+    cfg.setdefault("schema_version", "1.0.0")
+    cfg.setdefault("timeout_ms", 30000)
+    cfg.setdefault("max_output_chars", int(provider_config.get("max_output_chars", 200)))
+
+    if normalized == "litellm":
+        litellm_cfg = dict(cfg.get("litellm") or {})
+        model = _resolve_env_value(
+            "PERCEPTOR_LLM_MODEL",
+            "PERCEPTOR_VISION_MODEL",
+            "LLM_MODEL",
+            "PERSONA_LLM_MODEL",
+        ) or str(litellm_cfg.get("model") or "").strip()
+        if not model:
+            raise ValueError("PERCEPTOR_LLM_MODEL or PERCEPTOR_VISION_MODEL is required for litellm")
+        litellm_cfg["model"] = model
+        api_base = _resolve_env_value("PERCEPTOR_LLM_BASE_URL", "LLM_BASE_URL", "LITELLM_BASE_URL")
+        if api_base:
+            litellm_cfg["api_base"] = api_base
+        api_key_env = _select_api_key_env(
+            litellm_cfg.get("api_key_env"),
+            ["PERCEPTOR_LLM_API_KEY", "LLM_API_KEY", "OPENAI_API_KEY", "LITELLM_API_KEY"],
+        )
+        if api_key_env:
+            litellm_cfg["api_key_env"] = api_key_env
+        cfg["litellm"] = litellm_cfg
+        cfg["provider"] = "litellm"
+        cfg["mode"] = "litellm_live"
+    else:
+        cfg["provider"] = "stub"
+        cfg["mode"] = "deterministic_stub"
+
+    return cfg
+
+
 def _build_llm_provider(repo_root: Path, provider_config_path: str):
     provider_path = repo_root / provider_config_path
     provider_config = load_llm_provider_config(provider_path)
+    provider_config = _apply_llm_env_overrides(provider_config)
     provider_type = provider_config.get("provider")
 
     if provider_type == "stub":

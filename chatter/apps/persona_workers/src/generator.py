@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from pathlib import Path
 from typing import Dict
@@ -27,6 +28,64 @@ TEMPLATE_FAMILIES = [
 def _deterministic_index(seed: str, modulo: int) -> int:
     digest = hashlib.blake2b(seed.encode("utf-8"), digest_size=8).digest()
     return int.from_bytes(digest, "big") % modulo
+
+
+def _resolve_env_value(*names: str) -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value is None:
+            continue
+        cleaned = value.strip()
+        if cleaned:
+            return cleaned
+    return ""
+
+
+def _select_api_key_env(existing: str | None, candidates: list[str]) -> str | None:
+    for name in candidates:
+        value = os.getenv(name)
+        if value and value.strip():
+            return name
+    if existing:
+        return str(existing)
+    return candidates[0] if candidates else None
+
+
+def _apply_llm_env_overrides(provider_config: Dict) -> Dict:
+    provider_override = _resolve_env_value("LLM_PROVIDER")
+    if not provider_override:
+        return provider_config
+
+    normalized = provider_override.lower()
+    if normalized not in {"stub", "litellm"}:
+        raise ValueError(f"Unsupported LLM_PROVIDER override: {provider_override}")
+
+    cfg = dict(provider_config)
+    cfg.setdefault("schema_name", "LLMProviderConfig")
+    cfg.setdefault("schema_version", "1.0.0")
+    cfg.setdefault("timeout_ms", 30000)
+    cfg.setdefault("max_output_chars", int(provider_config.get("max_output_chars", 220)))
+
+    if normalized == "litellm":
+        litellm_cfg = dict(cfg.get("litellm") or {})
+        model = _resolve_env_value("LLM_MODEL", "PERSONA_LLM_MODEL") or str(litellm_cfg.get("model") or "").strip()
+        if not model:
+            raise ValueError("LLM_MODEL or PERSONA_LLM_MODEL is required for LLM_PROVIDER=litellm")
+        litellm_cfg["model"] = model
+        api_base = _resolve_env_value("LLM_BASE_URL", "LITELLM_BASE_URL")
+        if api_base:
+            litellm_cfg["api_base"] = api_base
+        api_key_env = _select_api_key_env(litellm_cfg.get("api_key_env"), ["LLM_API_KEY", "OPENAI_API_KEY", "LITELLM_API_KEY"])
+        if api_key_env:
+            litellm_cfg["api_key_env"] = api_key_env
+        cfg["litellm"] = litellm_cfg
+        cfg["provider"] = "litellm"
+        cfg["mode"] = "litellm_live"
+    else:
+        cfg["provider"] = "stub"
+        cfg["mode"] = "deterministic_stub"
+
+    return cfg
 
 
 def _extract_marker(content: str) -> str:
@@ -333,6 +392,7 @@ def generate_reply(
 
 def build_llm_provider(base_path: Path, provider_config_path: Path):
     provider_config = load_llm_provider_config(provider_config_path)
+    provider_config = _apply_llm_env_overrides(provider_config)
     try:
         max_output_chars = int(provider_config.get("max_output_chars", 220))
     except Exception:  # noqa: BLE001

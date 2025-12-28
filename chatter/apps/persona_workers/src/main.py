@@ -25,6 +25,7 @@ from packages.memory_runtime.src.llm_extract import LLMMemoryExtractor
 from packages.llm_runtime.src import LLMRequest, PromptRenderer
 
 from .auto_commentary import AutoCommentaryConfig, load_auto_commentary_config
+from .auto_commentary_engine import compute_summary_hash, dedupe_key, pick_persona, should_emit
 from .bus_redis_streams import ack, connect, ensure_consumer_group, read_messages
 from .config_loader import ConfigLoader
 from .generator import (
@@ -114,7 +115,6 @@ class PersonaWorkerService:
         self.auto_commentary_prompt_id = self.auto_commentary_config.prompt_id.strip()
         self.auto_commentary_prompt_id = self.auto_commentary_prompt_id or None
         self.stats.auto_commentary_prompt_id = self.auto_commentary_prompt_id
-        self.auto_commentary_trigger_tags = set(self.auto_commentary_config.trigger_tags)
         self.memory_enabled = settings.memory_enabled
         self.memory_backend = None
         self.memory_policy = None
@@ -676,38 +676,25 @@ class PersonaWorkerService:
         entries = list(self.state.observations.get(room_id, []))
         return format_observation_context(entries, room_id, reference_ts_ms, config)
 
-    def _record_auto_decision(self, obs_id: str, reason: str, persona_id: str | None = None) -> None:
-        self.stats.auto_last_decision = {
+    def _record_auto_decision(
+        self,
+        obs_id: str,
+        reason: str,
+        room_id: str | None = None,
+        persona_id: str | None = None,
+        score: float | None = None,
+        extra: dict | None = None,
+    ) -> None:
+        decision = {
             "persona_id": persona_id,
             "obs_id": obs_id,
+            "room_id": room_id,
             "reason": reason,
+            "score": score,
         }
-
-    def _select_auto_persona(self, obs_id: str) -> str | None:
-        persona_ids = sorted(self.personas.keys())
-        if not persona_ids:
-            return None
-        digest = hashlib.blake2b(obs_id.encode("utf-8"), digest_size=8).digest()
-        idx = int.from_bytes(digest, "big") % len(persona_ids)
-        return persona_ids[idx]
-
-    def _is_observation_interesting(self, observation: dict) -> tuple[bool, str]:
-        cfg = self.auto_commentary_config
-        hype = observation.get("hype_level")
-        if isinstance(hype, (int, float)) and hype >= cfg.hype_threshold:
-            return True, "hype"
-
-        tag_values = observation.get("tags") if isinstance(observation.get("tags"), list) else []
-        tags = {str(tag).strip().lower() for tag in tag_values if str(tag).strip()}
-        if tags and self.auto_commentary_trigger_tags and tags & self.auto_commentary_trigger_tags:
-            return True, "tag"
-
-        if cfg.trigger_on_entities:
-            entities = observation.get("entities") if isinstance(observation.get("entities"), list) else []
-            if any(str(ent).strip() for ent in entities):
-                return True, "entities"
-
-        return False, "not_interesting"
+        if extra:
+            decision.update(extra)
+        self.stats.auto_last_decision = decision
 
     async def _maybe_auto_commentary(
         self, observation: dict, room_id: str, obs_id: str, ts_ms: int
@@ -718,50 +705,53 @@ class PersonaWorkerService:
 
         target_room = self.room_config.get("room_id")
         if cfg.room_id_mode == "single" and target_room and room_id != target_room:
-            self._record_auto_decision(obs_id, "wrong_room")
+            self._record_auto_decision(obs_id, "wrong_room", room_id=room_id)
             return
 
         self.stats.auto_obs_seen += 1
         self.state.record_auto_observation_id(obs_id)
         self.stats.auto_last_observation_ids.append(obs_id)
 
-        interesting, reason = self._is_observation_interesting(observation)
-        if not interesting:
-            self._record_auto_decision(obs_id, reason)
-            return
-
-        self.stats.auto_obs_interesting += 1
-
-        if cfg.max_messages_per_observation > 0:
-            count = self.state.auto_observation_count(obs_id, ts_ms, cfg.dedupe_window_ms)
-            if count >= cfg.max_messages_per_observation:
+        should_send, reason, score = should_emit(observation, self.state, cfg, ts_ms)
+        self.stats.auto_last_interest_score = score
+        if reason != "not_interesting":
+            self.stats.auto_obs_interesting += 1
+        if not should_send:
+            if reason == "not_interesting":
+                self.stats.auto_suppressed_not_interesting += 1
+            elif reason in {"momentum_min_interval", "momentum_max_msgs"}:
+                self.stats.auto_suppressed_momentum += 1
+            elif reason == "summary_dedupe":
+                self.stats.auto_suppressed_summary_dedupe += 1
+            elif reason == "room_rate":
+                self.stats.auto_suppressed_room_rate += 1
+            elif reason == "max_per_observation":
                 self.stats.auto_suppressed_dedupe += 1
-                self._record_auto_decision(obs_id, "max_per_observation")
-                return
-
-        persona_id = self._select_auto_persona(obs_id)
-        if not persona_id:
-            self._record_auto_decision(obs_id, "no_persona")
+            self._record_auto_decision(obs_id, reason, room_id=room_id, score=score)
             return
 
-        if self.state.auto_seen_before(obs_id, persona_id, ts_ms, cfg.dedupe_window_ms):
+        persona_id, persona_reason = pick_persona(
+            observation, self.state, cfg, list(self.personas.keys())
+        )
+        if not persona_id:
+            if persona_reason == "diversity":
+                self.stats.auto_suppressed_diversity += 1
+            self._record_auto_decision(obs_id, persona_reason, room_id=room_id, score=score)
+            return
+
+        if self.state.auto_seen_before(dedupe_key(observation, cfg), persona_id, ts_ms, cfg.dedupe_window_ms):
             self.stats.auto_suppressed_dedupe += 1
-            self._record_auto_decision(obs_id, "dedupe", persona_id)
+            self._record_auto_decision(obs_id, "dedupe", room_id=room_id, persona_id=persona_id, score=score)
             return
 
         if not self.state.auto_persona_ready(persona_id, ts_ms, cfg.persona_cooldown_ms):
             self.stats.auto_suppressed_cooldown += 1
-            self._record_auto_decision(obs_id, "cooldown", persona_id)
-            return
-
-        if not self.state.auto_room_ready(room_id, ts_ms, cfg.room_rate_limit_ms):
-            self.stats.auto_suppressed_room_rate += 1
-            self._record_auto_decision(obs_id, "room_rate", persona_id)
+            self._record_auto_decision(obs_id, "cooldown", room_id=room_id, persona_id=persona_id, score=score)
             return
 
         persona = self.personas.get(persona_id)
         if not persona:
-            self._record_auto_decision(obs_id, "missing_persona", persona_id)
+            self._record_auto_decision(obs_id, "missing_persona", room_id=room_id, persona_id=persona_id, score=score)
             return
 
         obs_context_result = self._build_observation_context(room_id, ts_ms)
@@ -801,7 +791,13 @@ class PersonaWorkerService:
             )
         except Exception as exc:  # noqa: BLE001
             self.stats.auto_generation_failed += 1
-            self._record_auto_decision(obs_id, "generation_failed", persona_id)
+            self._record_auto_decision(
+                obs_id,
+                "generation_failed",
+                room_id=room_id,
+                persona_id=persona_id,
+                score=score,
+            )
             logger.warning("Auto commentary generation failed for %s: %s", obs_id, exc)
             return
 
@@ -818,7 +814,7 @@ class PersonaWorkerService:
         )
         if not auto_reply:
             self.stats.auto_generation_failed += 1
-            self._record_auto_decision(obs_id, "empty_reply", persona_id)
+            self._record_auto_decision(obs_id, "empty_reply", room_id=room_id, persona_id=persona_id, score=score)
             return
 
         published = await publish_chat_message(
@@ -832,13 +828,23 @@ class PersonaWorkerService:
             trace_producer="persona_worker_auto",
         )
         if published:
-            self.state.record_auto_publish(room_id, persona_id, ts_ms)
+            self.state.record_auto_publish(room_id, persona_id, ts_ms, cfg.persona_diversity.avoid_repeat_last_n)
             self.state.record_auto_observation_message(obs_id, ts_ms, cfg.dedupe_window_ms)
+            if cfg.summary_dedupe.enabled:
+                summary_hash = compute_summary_hash(observation, cfg)
+                self.state.record_auto_summary(summary_hash, ts_ms)
             self.stats.auto_messages_published += 1
-            self._record_auto_decision(obs_id, "published", persona_id)
+            self._record_auto_decision(
+                obs_id,
+                "published",
+                room_id=room_id,
+                persona_id=persona_id,
+                score=score,
+                extra={"persona_reason": persona_reason},
+            )
         else:
             self.stats.auto_generation_failed += 1
-            self._record_auto_decision(obs_id, "publish_failed", persona_id)
+            self._record_auto_decision(obs_id, "publish_failed", room_id=room_id, persona_id=persona_id, score=score)
 
     async def _handle_message(self, redis_id: str, raw_data: str) -> None:
         assert self.redis is not None

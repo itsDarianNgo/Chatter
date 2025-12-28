@@ -1,0 +1,16 @@
+services:
+  persona_workers:
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      GENERATION_MODE: litellm
+      LLM_PROVIDER: ${LLM_PROVIDER:-litellm}
+
+  stream_perceptor:
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-litellm}
+      PERCEPTOR_LLM_PROVIDER: ${PERCEPTOR_LLM_PROVIDER:-litellm}

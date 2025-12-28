@@ -6,14 +6,27 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 
 print_help() {
-  echo "Usage: bash scripts/dev/run_stream_demo.sh"
+  echo "Usage: bash scripts/dev/run_stream_demo.sh [--llm]"
   echo
   echo "Starts the local compose stack, frame/transcript publishers, and observation tailer."
+  echo "  --llm  Enable LiteLLM-backed persona/perceptor (requires .env.local or exported env vars)."
 }
 
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  print_help
-  exit 0
+use_llm=0
+for arg in "$@"; do
+  case "$arg" in
+    --help|-h)
+      print_help
+      exit 0
+      ;;
+    --llm)
+      use_llm=1
+      ;;
+  esac
+done
+
+if [[ "${DEV_LLM:-}" == "1" ]]; then
+  use_llm=1
 fi
 
 require_cmd() {
@@ -49,8 +62,35 @@ redis_url="${REDIS_URL_HOST:-${REDIS_URL:-redis://127.0.0.1:6379/0}}"
 export REDIS_URL_HOST="$redis_url"
 
 echo "Using Redis URL: $redis_url"
+if [[ "$use_llm" -eq 1 ]]; then
+  if [[ -f ".env.local" ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source ".env.local"
+    set +a
+  fi
+  if [[ -z "${LITELLM_BASE_URL:-}" && -z "${LLM_BASE_URL:-}" ]]; then
+    echo "FAIL: missing LITELLM_BASE_URL (or LLM_BASE_URL) for --llm."
+    exit 2
+  fi
+  if [[ -z "${LITELLM_API_KEY:-}" && -z "${OPENAI_API_KEY:-}" && -z "${LLM_API_KEY:-}" ]]; then
+    echo "FAIL: missing LITELLM_API_KEY (or OPENAI_API_KEY/LLM_API_KEY) for --llm."
+    exit 2
+  fi
+  if [[ -z "${PERSONA_LLM_MODEL:-}" && -z "${LLM_MODEL:-}" ]]; then
+    echo "FAIL: missing PERSONA_LLM_MODEL (or LLM_MODEL) for --llm."
+    exit 2
+  fi
+  if [[ -z "${PERCEPTOR_VISION_MODEL:-}" && -z "${PERCEPTOR_LLM_MODEL:-}" ]]; then
+    echo "WARN: PERCEPTOR_VISION_MODEL not set; stream_perceptor will reuse the persona model."
+  fi
+fi
 echo "Starting compose stack..."
-docker compose -f docker-compose.yml -f docker-compose.test.yml up -d --build
+compose_files=(-f docker-compose.yml -f docker-compose.test.yml)
+if [[ "$use_llm" -eq 1 ]]; then
+  compose_files+=(-f docker-compose.local.yml)
+fi
+docker compose "${compose_files[@]}" up -d --build
 if [[ $? -ne 0 ]]; then
   echo "FAIL: docker compose up failed."
   exit 2
